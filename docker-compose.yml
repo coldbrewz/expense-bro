@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  bot:
+    build: .
+    container_name: expense-bro-bot
+    restart: unless-stopped
+    volumes:
+      - ./data:/app/data
+    environment:
+      - TELE_TOKEN=${TELE_TOKEN}
+      - ALLOWED_USER_IDS=${ALLOWED_USER_IDS}
+      - BILLING_CYCLE_START_DAY=${BILLING_CYCLE_START_DAY}
+      - PDF_PASSWORD=${PDF_PASSWORD}
+
+  dashboard:
+    build: .
+    container_name: expense-bro-dashboard
+    restart: unless-stopped
+    # We no longer need to expose port 8501 publicly to the web because
+    # Cloudflare Tunnel will route to it privately inside the Docker network!
+    expose:
+      - "8501"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - DASHBOARD_PASSWORD=${DASHBOARD_PASSWORD}
+    command: ["streamlit", "run", "dashboard.py", "--server.port=8501", "--server.address=0.0.0.0"]
+
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: expense-bro-tunnel
+    restart: unless-stopped
+    environment:
+      - TUNNEL_TOKEN=${TUNNEL_TOKEN}
+    command: tunnel run

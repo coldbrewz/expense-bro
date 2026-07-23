@@ -1,0 +1,6 @@
+__pycache__/
+.env
+creds.json
+data/
+repo_check/
+

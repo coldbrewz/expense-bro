@@ -1,0 +1,5 @@
+pyTelegramBotAPI
+pypdf
+streamlit
+pandas
+plotly
