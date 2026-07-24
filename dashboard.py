@@ -29,9 +29,9 @@ if DASHBOARD_PASSWORD:
                 [data-testid="stHeader"] { display: none !important; }
                 footer { visibility: hidden !important; }
                 
-                /* Radial background gradient */
+                /* Radial background gradient - Darker Shade of Blue */
                 .stApp {
-                    background: radial-gradient(circle at 50% 10%, #1e3c72 0%, #111a2e 100%) !important;
+                    background: radial-gradient(circle at 50% 10%, #0b1a30 0%, #050b14 100%) !important;
                     font-family: 'Outfit', sans-serif !important;
                 }
                 
@@ -40,10 +40,10 @@ if DASHBOARD_PASSWORD:
                     max-width: 440px;
                     margin: 60px auto 10px auto;
                     padding: 40px 30px;
-                    background: rgba(255, 255, 255, 0.03) !important;
-                    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+                    background: rgba(255, 255, 255, 0.02) !important;
+                    border: 1px solid rgba(255, 255, 255, 0.05) !important;
                     border-radius: 24px !important;
-                    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6) !important;
+                    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7) !important;
                     backdrop-filter: blur(25px) !important;
                     -webkit-backdrop-filter: blur(25px) !important;
                     text-align: center;
@@ -55,7 +55,7 @@ if DASHBOARD_PASSWORD:
                     font-size: 4rem;
                     display: inline-block;
                     margin-bottom: 20px;
-                    filter: drop-shadow(0 0 15px rgba(0, 198, 255, 0.6));
+                    filter: drop-shadow(0 0 15px rgba(29, 78, 216, 0.5));
                     animation: float 3s ease-in-out infinite;
                 }
                 
@@ -69,13 +69,13 @@ if DASHBOARD_PASSWORD:
                     font-size: 2.2rem;
                     font-weight: 800;
                     margin-bottom: 8px;
-                    background: linear-gradient(135deg, #00c6ff 0%, #0072ff 100%);
+                    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
                     -webkit-background-clip: text;
                     -webkit-text-fill-color: transparent;
                 }
                 
                 .sub-text {
-                    color: #a0aec0;
+                    color: #8a9ca8;
                     font-size: 0.95rem;
                     margin-bottom: 30px;
                     line-height: 1.5;
@@ -83,16 +83,16 @@ if DASHBOARD_PASSWORD:
                 
                 /* Custom styling for Streamlit's text input container */
                 div[data-baseweb="input"] {
-                    background-color: rgba(255, 255, 255, 0.04) !important;
-                    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+                    background-color: rgba(255, 255, 255, 0.03) !important;
+                    border: 1px solid rgba(255, 255, 255, 0.08) !important;
                     border-radius: 12px !important;
                     color: white !important;
                     height: 50px !important;
                 }
                 
                 div[data-baseweb="input"]:focus-within {
-                    border-color: #00c6ff !important;
-                    box-shadow: 0 0 12px rgba(0, 198, 255, 0.3) !important;
+                    border-color: #2563eb !important;
+                    box-shadow: 0 0 12px rgba(37, 99, 235, 0.3) !important;
                 }
                 
                 input {
@@ -103,7 +103,7 @@ if DASHBOARD_PASSWORD:
                 
                 /* Custom styling for Streamlit button */
                 button[kind="secondary"] {
-                    background: linear-gradient(135deg, #00c6ff 0%, #0072ff 100%) !important;
+                    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
                     color: white !important;
                     border: none !important;
                     border-radius: 12px !important;
@@ -112,14 +112,14 @@ if DASHBOARD_PASSWORD:
                     font-size: 1rem !important;
                     width: 100% !important;
                     transition: all 0.3s ease !important;
-                    box-shadow: 0 4px 15px rgba(0, 114, 255, 0.4) !important;
+                    box-shadow: 0 4px 15px rgba(29, 78, 216, 0.3) !important;
                     margin-top: 15px !important;
                     cursor: pointer !important;
                 }
                 
                 button[kind="secondary"]:hover {
                     transform: translateY(-2px) !important;
-                    box-shadow: 0 6px 20px rgba(0, 114, 255, 0.6) !important;
+                    box-shadow: 0 6px 20px rgba(29, 78, 216, 0.5) !important;
                     color: white !important;
                 }
                 
