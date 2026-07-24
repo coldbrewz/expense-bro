@@ -106,7 +106,7 @@ def get_stats(billing_cycle):
     
     cursor.execute("""
         SELECT SUM(amount) FROM transactions
-        WHERE billing_cycle = ? AND category = 'UNMAPPED' AND account = 'permata_cc'
+        WHERE billing_cycle = ? AND category NOT IN ('ONLINE', 'OFFLINE') AND account = 'permata_cc'
     """, (billing_cycle,))
     cc_unmapped = cursor.fetchone()[0] or 0
     

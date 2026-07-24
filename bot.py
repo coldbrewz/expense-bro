@@ -223,7 +223,7 @@ def parse_manual_add_command(args_str):
         'cc': 'permata_cc'
     }
     
-    cashback_cats = ['online', 'offline', 'unmapped']
+    cashback_cats = ['online', 'offline', 'non-cc']
     expense_cats = ['food', 'groceries', 'transport', 'entertainment', 'shopping', 'bills', 'investment', 'family', 'misc']
     
     # Scan up to 3 trailing arguments
@@ -240,7 +240,7 @@ def parse_manual_add_command(args_str):
             
         # Check if it matches a card cashback category
         if last_word in cashback_cats:
-            category = last_word.upper()
+            category = "Non-CC" if last_word == "non-cc" else last_word.upper()
             words.pop()
             continue
             
@@ -349,6 +349,9 @@ def add_manual(message):
         return
         
     amount, merchant, category, account, expense_category = parsed
+    if account != "permata_cc":
+        category = "Non-CC"
+        
     cycle_label, start_date, end_date = get_billing_cycle_info()
     
     # Save to database and capture the inserted transaction ID
@@ -360,7 +363,7 @@ def add_manual(message):
     
     cc_cat_line = ""
     if account == "permata_cc":
-        label = "Other Retail" if category == "UNMAPPED" else category.capitalize()
+        label = "Non-CC" if category == "Non-CC" else category.capitalize()
         cc_cat_line = f"• *CC Cashback:* `{label}`\n"
     
     success_msg = (
@@ -462,7 +465,7 @@ def undo_last(message):
         
         # Format the deletion log nicely depending on whether it is a CC transaction
         if deleted['account'] == 'permata_cc':
-            cc_label = "Other Retail" if deleted['category'] == 'UNMAPPED' else deleted['category']
+            cc_label = "Non-CC" if deleted['category'] == 'Non-CC' else deleted['category']
             meta_str = f"({cc_label}/{deleted['expense_category'].capitalize()})"
         else:
             meta_str = f"({deleted['expense_category'].capitalize()})"
@@ -552,6 +555,8 @@ def handle_document(message):
                 continue
                 
             category = parser.categorize_merchant(tx["merchant"])
+            if account_name != "permata_cc":
+                category = "Non-CC"
             expense_category = parser.categorize_expense(tx["merchant"])
             # Format timestamp as YYYY-MM-DD 00:00:00 for e-statement transactions
             timestamp = f"{tx['date']} 00:00:00"
@@ -609,6 +614,8 @@ def process_message(message):
         return
         
     category = parser.categorize_merchant(merchant)
+    if account != "permata_cc":
+        category = "Non-CC"
     expense_category = parser.categorize_expense(merchant, text)
     account = parser.detect_account(text) # Auto-detect account (BCA, Saqu, Line Bank, or default to Permata CC)
     cycle_label, start_date, end_date = get_billing_cycle_info()
@@ -622,7 +629,7 @@ def process_message(message):
     
     cc_cat_line = ""
     if account == "permata_cc":
-        label = "Other Retail" if category == "UNMAPPED" else category.capitalize()
+        label = "Non-CC" if category == "Non-CC" else category.capitalize()
         cc_cat_line = f"• *CC Cashback:* `{label}`\n"
         
     success_msg = (

@@ -75,7 +75,7 @@ def categorize_merchant(merchant):
     Categorizes the merchant based on the exact specified regex sets.
     """
     if not merchant:
-        return "UNMAPPED"
+        return "Non-CC"
         
     merchant_lower = merchant.lower()
     online_pattern = r'(tokopedia|shopee|gojek|grab|midtrans|xendit|netflix|spotify|google|apple)'
@@ -86,7 +86,7 @@ def categorize_merchant(merchant):
     elif re.search(offline_pattern, merchant_lower):
         return "OFFLINE"
     else:
-        return "UNMAPPED"
+        return "Non-CC"
 
 def detect_account(text):
     """
