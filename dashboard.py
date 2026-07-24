@@ -140,7 +140,7 @@ if DASHBOARD_PASSWORD:
         st.markdown("""
             <div class="login-card">
                 <div class="icon-glow">💳</div>
-                <div class="title-text">Cacha & Najih</div>
+                <div class="title-text">Expense Tracker</div>
                 <div class="sub-text">Private Budget Dashboard & CC Optimizer.<br>Enter password to unlock.</div>
             </div>
         """, unsafe_allow_html=True)
