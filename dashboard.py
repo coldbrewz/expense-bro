@@ -303,39 +303,17 @@ def render_kpi_card(title, value, subtitle, icon, delta=None, delta_color="green
         arrow = "↑" if delta_color == "green" else "↓"
         delta_html = f'<div style="color: {color}; font-size: 0.8rem; margin-top: 4px; font-weight: 700;">{arrow} {delta}</div>'
         
-    return f"""
-    <div style="
-        background: #111219;
-        border: 1px solid #1c1e28;
-        border-radius: 18px;
-        padding: 20px;
-        margin-bottom: 15px;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-    ">
-        <div>
-            <div style="color: #8a9ca8; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">{title}</div>
-            <div style="color: #ffffff; font-size: 1.55rem; font-weight: 800; font-family: 'Outfit', sans-serif;">{value}</div>
-            <div style="color: #4a5568; font-size: 0.75rem; margin-top: 2px;">{subtitle}</div>
-            {delta_html}
-        </div>
-        <div style="
-            background: rgba(255, 255, 255, 0.02);
-            border: 1px solid rgba(255, 255, 255, 0.04);
-            border-radius: 12px;
-            width: 48px;
-            height: 48px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.4rem;
-        ">
-            {icon}
-        </div>
-    </div>
-    """
+    return (
+        '<div style="background:#111219; border:1px solid #1c1e28; border-radius:18px; padding:20px; margin-bottom:15px; box-shadow:0 10px 25px rgba(0,0,0,0.3); display:flex; align-items:center; justify-content:space-between;">'
+        '<div>'
+        f'<div style="color:#8a9ca8; font-size:0.75rem; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;">{title}</div>'
+        f'<div style="color:#ffffff; font-size:1.55rem; font-weight:800; font-family:Outfit,sans-serif;">{value}</div>'
+        f'<div style="color:#4a5568; font-size:0.75rem; margin-top:2px;">{subtitle}</div>'
+        f'{delta_html}'
+        '</div>'
+        f'<div style="background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.04); border-radius:12px; width:48px; height:48px; display:flex; align-items:center; justify-content:center; font-size:1.4rem;">{icon}</div>'
+        '</div>'
+    )
 
 # --- HERO HEADER ---
 st.markdown(f"""
@@ -437,7 +415,7 @@ with chart_col1:
             mode='lines+markers',
             name='Daily Spend',
             line=dict(color='#3b82f6', width=3.5),
-            marker=dict(size=7, color='#1d4ed8', borderwidth=1, bordercolor='white'),
+            marker=dict(size=7, color='#1d4ed8', line_width=1, line_color='white'),
             fill='tozeroy',
             fillcolor='rgba(59, 130, 246, 0.06)'
         ))
