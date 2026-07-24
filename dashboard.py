@@ -20,16 +20,144 @@ if DASHBOARD_PASSWORD:
         st.session_state["authenticated"] = False
         
     if not st.session_state["authenticated"]:
-        st.title("🔒 Expense Bro Dashboard")
-        st.write("This dashboard is private. Please enter your access password.")
+        # Custom CSS Injection for a premium glassmorphic dark-theme look
+        st.markdown("""
+            <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+            <style>
+                /* Hide sidebar, footer and headers on login page */
+                [data-testid="stSidebar"] { display: none !important; }
+                [data-testid="stHeader"] { display: none !important; }
+                footer { visibility: hidden !important; }
+                
+                /* Radial background gradient */
+                .stApp {
+                    background: radial-gradient(circle at 50% 10%, #1e3c72 0%, #111a2e 100%) !important;
+                    font-family: 'Outfit', sans-serif !important;
+                }
+                
+                /* Login Card container */
+                .login-card {
+                    max-width: 440px;
+                    margin: 60px auto 10px auto;
+                    padding: 40px 30px;
+                    background: rgba(255, 255, 255, 0.03) !important;
+                    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+                    border-radius: 24px !important;
+                    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6) !important;
+                    backdrop-filter: blur(25px) !important;
+                    -webkit-backdrop-filter: blur(25px) !important;
+                    text-align: center;
+                    color: white;
+                }
+                
+                /* Floating glowing credit card icon */
+                .icon-glow {
+                    font-size: 4rem;
+                    display: inline-block;
+                    margin-bottom: 20px;
+                    filter: drop-shadow(0 0 15px rgba(0, 198, 255, 0.6));
+                    animation: float 3s ease-in-out infinite;
+                }
+                
+                @keyframes float {
+                    0% { transform: translateY(0px); }
+                    50% { transform: translateY(-10px); }
+                    100% { transform: translateY(0px); }
+                }
+                
+                .title-text {
+                    font-size: 2.2rem;
+                    font-weight: 800;
+                    margin-bottom: 8px;
+                    background: linear-gradient(135deg, #00c6ff 0%, #0072ff 100%);
+                    -webkit-background-clip: text;
+                    -webkit-text-fill-color: transparent;
+                }
+                
+                .sub-text {
+                    color: #a0aec0;
+                    font-size: 0.95rem;
+                    margin-bottom: 30px;
+                    line-height: 1.5;
+                }
+                
+                /* Custom styling for Streamlit's text input container */
+                div[data-baseweb="input"] {
+                    background-color: rgba(255, 255, 255, 0.04) !important;
+                    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+                    border-radius: 12px !important;
+                    color: white !important;
+                    height: 50px !important;
+                }
+                
+                div[data-baseweb="input"]:focus-within {
+                    border-color: #00c6ff !important;
+                    box-shadow: 0 0 12px rgba(0, 198, 255, 0.3) !important;
+                }
+                
+                input {
+                    color: white !important;
+                    text-align: center !important;
+                    font-size: 1.1rem !important;
+                }
+                
+                /* Custom styling for Streamlit button */
+                button[kind="secondary"] {
+                    background: linear-gradient(135deg, #00c6ff 0%, #0072ff 100%) !important;
+                    color: white !important;
+                    border: none !important;
+                    border-radius: 12px !important;
+                    padding: 12px 24px !important;
+                    font-weight: 700 !important;
+                    font-size: 1rem !important;
+                    width: 100% !important;
+                    transition: all 0.3s ease !important;
+                    box-shadow: 0 4px 15px rgba(0, 114, 255, 0.4) !important;
+                    margin-top: 15px !important;
+                    cursor: pointer !important;
+                }
+                
+                button[kind="secondary"]:hover {
+                    transform: translateY(-2px) !important;
+                    box-shadow: 0 6px 20px rgba(0, 114, 255, 0.6) !important;
+                    color: white !important;
+                }
+                
+                button[kind="secondary"]:active {
+                    transform: translateY(0px) !important;
+                }
+                
+                .footer-info {
+                    margin-top: 25px;
+                    font-size: 0.75rem;
+                    color: #718096;
+                    line-height: 1.4;
+                }
+            </style>
+        """, unsafe_allow_html=True)
         
-        password_input = st.text_input("Password:", type="password")
-        if st.button("Access Dashboard") or password_input:
-            if password_input == DASHBOARD_PASSWORD:
-                st.session_state["authenticated"] = True
-                st.rerun()
-            elif password_input:
-                st.error("Incorrect password.")
+        # Render custom glassmorphic Card
+        st.markdown("""
+            <div class="login-card">
+                <div class="icon-glow">💳</div>
+                <div class="title-text">Cacha & Najih</div>
+                <div class="sub-text">Private Budget Dashboard & CC Optimizer.<br>Enter password to unlock.</div>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        # Display the input form centered nicely
+        col_space1, col_form, col_space2 = st.columns([1, 4, 1])
+        with col_form:
+            password_input = st.text_input("", type="password", placeholder="••••••••")
+            if st.button("Unlock Dashboard") or (password_input and len(password_input) > 0):
+                if password_input == DASHBOARD_PASSWORD:
+                    st.session_state["authenticated"] = True
+                    st.rerun()
+                elif password_input:
+                    st.error("Incorrect password.")
+                    
+            st.markdown('<div class="footer-info">Securely isolated on private VM.<br>Managed via Cloudflare Zero Trust.</div>', unsafe_allow_html=True)
+            
         st.stop()
 
 # --- DATABASE LOAD ---
