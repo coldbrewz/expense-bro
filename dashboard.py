@@ -587,17 +587,12 @@ with bottom_col2:
         limit_str = format_rupiah(limit)
         icon = cat_icons.get(cat_name, "📦")
         
-        budget_html.append(f"""
-        <div class="progress-container">
-            <div class="progress-label-row">
-                <span>{icon} {cat_name.capitalize()}</span>
-                <span>{spent_str} / {limit_str} <span style="color: {color}; font-weight: 700; margin-left: 2px;">{pct_display}%</span></span>
-            </div>
-            <div class="progress-bar-bg">
-                <div class="progress-bar-fill" style="width: {pct_display}%; background: {color};"></div>
-            </div>
-        </div>
-        """)
+        budget_html.append(
+            f'<div class="progress-container">'
+            f'<div class="progress-label-row"><span>{icon} {cat_name.capitalize()}</span><span>{spent_str} / {limit_str} <span style="color:{color}; font-weight:700; margin-left:2px;">{pct_display}%</span></span></div>'
+            f'<div class="progress-bar-bg"><div class="progress-bar-fill" style="width:{pct_display}%; background:{color};"></div></div>'
+            f'</div>'
+        )
         
     budget_html.append('</div>')
     st.markdown("\n".join(budget_html), unsafe_allow_html=True)
@@ -644,10 +639,7 @@ with bottom_col3:
             f'</div>'
         )
         
-    insights_html.append("""
-        </div>
-    </div>
-    """)
+    insights_html.append('</div></div>')
     st.markdown("\n".join(insights_html), unsafe_allow_html=True)
 
 
