@@ -296,10 +296,10 @@ st.subheader("📋 Transactions Manager")
 st.markdown("💡 *Double-click any cell to edit. Select a row and press Delete/Backspace on your keyboard to remove. Click the **+** button at the bottom of the table to add a new transaction. Save your changes using the button below.*")
 
 show_cols = ['id', 'date', 'merchant', 'amount', 'account', 'expense_category', 'category']
-# Make sure amount is numeric and clean up date column
+# Make sure amount is numeric and date is a datetime.date object
 display_df = cycle_df[show_cols].copy()
 display_df['amount'] = display_df['amount'].astype(int)
-display_df['date'] = display_df['date'].astype(str)
+display_df['date'] = pd.to_datetime(display_df['date']).dt.date
 
 # Sort display_df descending by ID so newest is on top
 display_df = display_df.sort_values(by='id', ascending=False)
@@ -368,22 +368,20 @@ if has_changes:
                 account = new_row.get("account", "general")
                 expense_category = new_row.get("expense_category", "misc")
                 category = new_row.get("category", "UNMAPPED")
-                date_str = new_row.get("date", datetime.now().strftime("%Y-%m-%d"))
                 
-                timestamp = f"{date_str} 00:00:00"
+                date_val = new_row.get("date", datetime.now().date())
                 
-                # Calculate billing cycle dynamically matching BILLING_CYCLE_START_DAY
-                # We default to 25 if env not found
-                start_day = 25
-                # Try reading start day from environment
-                env_start_day = os.getenv("BILLING_CYCLE_START_DAY")
-                if env_start_day and env_start_day.isdigit():
-                    start_day = int(env_start_day)
-                    
-                try:
-                    date_obj = datetime.strptime(date_str, "%Y-%m-%d")
-                except:
-                    date_obj = datetime.now()
+                # Convert date object or string to format YYYY-MM-DD
+                if hasattr(date_val, "strftime"):
+                    date_str = date_val.strftime("%Y-%m-%d")
+                    date_obj = date_val
+                else:
+                    date_str = str(date_val)
+                    try:
+                        date_obj = datetime.strptime(date_str, "%Y-%m-%d")
+                    except:
+                        date_obj = datetime.now()
+                        date_str = date_obj.strftime("%Y-%m-%d")
                     
                 year = date_obj.year
                 month = date_obj.month
