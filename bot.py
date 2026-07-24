@@ -128,7 +128,7 @@ def generate_report(stats, cycle_label, start_date, end_date):
     report.append(f"🌐 *ONLINE Spend:* `{format_rupiah(cc_online)}` (cap: 4jt)")
     report.append(f"🏬 *OFFLINE Spend:* `{format_rupiah(cc_offline)}` (cap: 2jt)")
     if cc_unmapped > 0:
-        report.append(f"❓ *UNMAPPED Spend:* `{format_rupiah(cc_unmapped)}`")
+        report.append(f"📦 *Other Retail Spend:* `{format_rupiah(cc_unmapped)}`")
     report.append(f"━━━━━━━━━━━━━━━━━━━")
     report.append(f"💳 *CC Total Retail:* `{format_rupiah(cc_total)}`")
     
@@ -358,12 +358,17 @@ def add_manual(message):
     stats = db.get_stats(cycle_label)
     report = generate_report(stats, cycle_label, start_date, end_date)
     
+    cc_cat_line = ""
+    if account == "permata_cc":
+        label = "Other Retail" if category == "UNMAPPED" else category.capitalize()
+        cc_cat_line = f"• *CC Cashback:* `{label}`\n"
+    
     success_msg = (
         f"📝 *Manually Logged (ID: #{tx_id})!*\n"
         f"• *Merchant:* `{merchant}`\n"
         f"• *Amount:* `{format_rupiah(amount)}`\n"
-        f"• *Category:* `{category}`\n"
-        f"• *Budget Category:* `{expense_category}`\n"
+        f"{cc_cat_line}"
+        f"• *Budget Category:* `{expense_category.capitalize()}`\n"
         f"• *Account:* `{account}`\n\n"
         f"{report}"
     )
@@ -455,9 +460,16 @@ def undo_last(message):
         stats = db.get_stats(cycle_label)
         report = generate_report(stats, cycle_label, start_date, end_date)
         
+        # Format the deletion log nicely depending on whether it is a CC transaction
+        if deleted['account'] == 'permata_cc':
+            cc_label = "Other Retail" if deleted['category'] == 'UNMAPPED' else deleted['category']
+            meta_str = f"({cc_label}/{deleted['expense_category'].capitalize()})"
+        else:
+            meta_str = f"({deleted['expense_category'].capitalize()})"
+            
         reply_msg = (
             f"🗑️ *Undone last transaction!*\n"
-            f"• *Removed:* `{deleted['merchant']}` | `{format_rupiah(deleted['amount'])}` ({deleted['category']}/{deleted['expense_category']}) from `{deleted['account']}`\n\n"
+            f"• *Removed:* `{deleted['merchant']}` | `{format_rupiah(deleted['amount'])}` {meta_str} from `{deleted['account']}`\n\n"
             f"{report}"
         )
         bot.reply_to(message, reply_msg, parse_mode="Markdown")
@@ -608,12 +620,17 @@ def process_message(message):
     stats = db.get_stats(cycle_label)
     report = generate_report(stats, cycle_label, start_date, end_date)
     
+    cc_cat_line = ""
+    if account == "permata_cc":
+        label = "Other Retail" if category == "UNMAPPED" else category.capitalize()
+        cc_cat_line = f"• *CC Cashback:* `{label}`\n"
+        
     success_msg = (
         f"✅ *Logged successfully (ID: #{tx_id})!*\n"
         f"• *Merchant:* `{merchant}`\n"
         f"• *Amount:* `{format_rupiah(amount)}`\n"
-        f"• *Category:* `{category}`\n"
-        f"• *Budget Category:* `{expense_category}`\n"
+        f"{cc_cat_line}"
+        f"• *Budget Category:* `{expense_category.capitalize()}`\n"
         f"• *Account:* `{account}`\n\n"
         f"{report}"
     )
