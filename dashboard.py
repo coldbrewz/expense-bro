@@ -202,13 +202,6 @@ df['amount'] = df['amount'].astype(float)
 df['timestamp'] = pd.to_datetime(df['timestamp'])
 df['date'] = df['timestamp'].dt.date
 
-# Sidebar filter - Billing Cycle
-cycles = sorted(df['billing_cycle'].unique(), reverse=True)
-selected_cycle = st.sidebar.selectbox("Select Billing Cycle:", cycles)
-
-# Filter dataframe for selected cycle
-cycle_df = df[df['billing_cycle'] == selected_cycle]
-
 # Helper formatting function
 def format_rupiah(value):
     return f"Rp {value:,.0f}".replace(",", ".")
@@ -241,10 +234,9 @@ st.markdown("""
             color: white !important;
         }
         
-        /* Sidebar styling */
+        /* Hide sidebar to remove wasted space */
         [data-testid="stSidebar"] {
-            background-color: #0b0c10 !important;
-            border-right: 1px solid #151821 !important;
+            display: none !important;
         }
         
         /* Card Wrapper styling */
@@ -315,18 +307,22 @@ def render_kpi_card(title, value, subtitle, icon, delta=None, delta_color="green
         '</div>'
     )
 
-# --- HERO HEADER ---
-st.markdown(f"""
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 30px; flex-wrap: wrap; gap: 15px;">
+# --- HERO HEADER & CYCLE SELECTOR ---
+header_col1, header_col2 = st.columns([3, 1])
+
+with header_col1:
+    st.markdown("""
         <div>
             <h1 style="margin:0; font-weight:800; font-size:2rem; background: linear-gradient(135deg, #ffffff 0%, #a0aec0 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">Good evening, Najih 👋</h1>
             <p style="margin:5px 0 0 0; color:#8a9ca8; font-size:0.95rem;">Here's what's happening with your finances today.</p>
         </div>
-        <div style="background: #111219; border: 1px solid #1c1e28; border-radius: 12px; padding: 8px 16px; font-weight: 600; font-size: 0.9rem; color:#8a9ca8; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
-            📅 Billing Cycle: <span style="color:#3b82f6;">{selected_cycle}</span>
-        </div>
-    </div>
-""", unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
+
+with header_col2:
+    cycles = sorted(df['billing_cycle'].unique(), reverse=True)
+    selected_cycle = st.selectbox("📅 Billing Cycle", cycles)
+
+cycle_df = df[df['billing_cycle'] == selected_cycle]
 
 # --- CALCULATIONS ---
 cc_df = cycle_df[cycle_df['account'] == 'permata_cc']
@@ -406,11 +402,12 @@ with chart_col1:
     # Process daily spending trend
     daily_df = cycle_df.groupby('date')['amount'].sum().reset_index()
     daily_df = daily_df.sort_values(by='date')
+    daily_df['date_label'] = pd.to_datetime(daily_df['date']).dt.strftime('%d %b')
     
     if not daily_df.empty:
         fig_trend = go.Figure()
         fig_trend.add_trace(go.Scatter(
-            x=daily_df['date'],
+            x=daily_df['date_label'],
             y=daily_df['amount'],
             mode='lines+markers',
             name='Daily Spend',
@@ -425,6 +422,7 @@ with chart_col1:
             font_color='#8a9ca8',
             font_family='Outfit',
             xaxis=dict(
+                type='category',
                 showgrid=False,
                 linecolor='#1c1e28',
                 tickfont=dict(size=10, color='#8a9ca8')
