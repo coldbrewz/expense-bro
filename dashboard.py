@@ -1,5 +1,6 @@
 import os
 import sqlite3
+from datetime import datetime
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -289,24 +290,126 @@ with col_cat:
     st.plotly_chart(fig_cat, use_container_width=True)
 
 
-# Data List view
+# Data List view with interactive editor
 st.write("---")
-st.subheader("📋 Transactions List")
-show_cols = ['id', 'date', 'merchant', 'amount', 'account', 'expense_category', 'category']
-display_df = cycle_df[show_cols].copy()
-display_df['amount'] = display_df['amount'].apply(lambda x: f"Rp {x:,.0f}".replace(",", "."))
+st.subheader("📋 Transactions Manager")
+st.markdown("💡 *Double-click any cell to edit. Select a row and press Delete/Backspace on your keyboard to remove. Click the **+** button at the bottom of the table to add a new transaction. Save your changes using the button below.*")
 
-st.dataframe(
-    display_df.sort_values(by='id', ascending=False),
+show_cols = ['id', 'date', 'merchant', 'amount', 'account', 'expense_category', 'category']
+# Make sure amount is numeric and clean up date column
+display_df = cycle_df[show_cols].copy()
+display_df['amount'] = display_df['amount'].astype(int)
+display_df['date'] = display_df['date'].astype(str)
+
+# Sort display_df descending by ID so newest is on top
+display_df = display_df.sort_values(by='id', ascending=False)
+
+if "editor_key" not in st.session_state:
+    st.session_state.editor_key = 0
+
+state_key = f"editor_{st.session_state.editor_key}"
+
+edited_df = st.data_editor(
+    display_df,
+    key=state_key,
     column_config={
-        "id": "ID",
-        "date": "Date",
-        "merchant": "Merchant",
-        "amount": "Amount",
-        "account": "Account",
-        "expense_category": "Budget Category",
-        "category": "CC Category"
+        "id": st.column_config.NumberColumn("ID", disabled=True, help="Database Primary Key (ReadOnly)"),
+        "date": st.column_config.DateColumn("Date", required=True),
+        "merchant": st.column_config.TextColumn("Merchant", required=True),
+        "amount": st.column_config.NumberColumn("Amount (IDR)", required=True, min_value=0, format="%d"),
+        "account": st.column_config.SelectboxColumn("Account", options=["permata_cc", "bank_saqu", "bca", "line_bank", "general"], required=True),
+        "expense_category": st.column_config.SelectboxColumn("Budget Category", options=["food", "groceries", "transport", "entertainment", "shopping", "bills", "investment", "family", "misc"], required=True),
+        "category": st.column_config.SelectboxColumn("CC Category", options=["ONLINE", "OFFLINE", "UNMAPPED"], required=True)
     },
     hide_index=True,
-    use_container_width=True
+    use_container_width=True,
+    num_rows="dynamic"
 )
+
+# Check if there are unsaved changes
+has_changes = False
+changes = st.session_state.get(state_key, {})
+if changes:
+    edited = changes.get("edited_rows", {})
+    added = changes.get("added_rows", [])
+    deleted = changes.get("deleted_rows", [])
+    if edited or added or deleted:
+        has_changes = True
+
+if has_changes:
+    st.info("⚠️ You have unsaved changes in the transaction table!")
+    if st.button("💾 Save Database Changes", type="primary", use_container_width=True):
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            
+            # 1. Process edited rows
+            for row_idx, row_changes in edited.items():
+                tx_id = int(display_df.iloc[row_idx]['id'])
+                for field, new_value in row_changes.items():
+                    if field == 'amount':
+                        new_value = int(new_value)
+                    elif field == 'category':
+                        new_value = new_value.upper()
+                    elif field == 'expense_category':
+                        new_value = new_value.lower()
+                    
+                    cursor.execute(f"UPDATE transactions SET {field} = ? WHERE id = ?", (new_value, tx_id))
+            
+            # 2. Process deleted rows
+            for row_idx in deleted:
+                tx_id = int(display_df.iloc[row_idx]['id'])
+                cursor.execute("DELETE FROM transactions WHERE id = ?", (tx_id,))
+                
+            # 3. Process added rows
+            for new_row in added:
+                merchant = new_row.get("merchant", "New Transaction")
+                amount = int(new_row.get("amount", 0))
+                account = new_row.get("account", "general")
+                expense_category = new_row.get("expense_category", "misc")
+                category = new_row.get("category", "UNMAPPED")
+                date_str = new_row.get("date", datetime.now().strftime("%Y-%m-%d"))
+                
+                timestamp = f"{date_str} 00:00:00"
+                
+                # Calculate billing cycle dynamically matching BILLING_CYCLE_START_DAY
+                # We default to 25 if env not found
+                start_day = 25
+                # Try reading start day from environment
+                env_start_day = os.getenv("BILLING_CYCLE_START_DAY")
+                if env_start_day and env_start_day.isdigit():
+                    start_day = int(env_start_day)
+                    
+                try:
+                    date_obj = datetime.strptime(date_str, "%Y-%m-%d")
+                except:
+                    date_obj = datetime.now()
+                    
+                year = date_obj.year
+                month = date_obj.month
+                day = date_obj.day
+                
+                if start_day > 1:
+                    if day >= start_day:
+                        month += 1
+                        if month > 12:
+                            month = 1
+                            year += 1
+                    cycle_label = f"{year}-{month:02d}"
+                else:
+                    cycle_label = f"{year}-{month:02d}"
+                    
+                cursor.execute("""
+                    INSERT INTO transactions (timestamp, merchant, amount, category, billing_cycle, account, expense_category)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, (timestamp, merchant, amount, category, cycle_label, account, expense_category))
+                
+            conn.commit()
+            conn.close()
+            
+            # Reset editor state and trigger reload
+            st.session_state.editor_key += 1
+            st.success("✅ Changes saved successfully!")
+            st.rerun()
+        except Exception as e:
+            st.error(f"❌ Failed to save changes: {e}")
