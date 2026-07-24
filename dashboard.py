@@ -21,7 +21,7 @@ if DASHBOARD_PASSWORD:
         st.session_state["authenticated"] = False
         
     if not st.session_state["authenticated"]:
-        # Custom CSS Injection for a premium glassmorphic dark-theme look
+        # Custom CSS Injection for a premium glassmorphic dark-theme look matching main dashboard
         st.markdown("""
             <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
             <style>
@@ -30,33 +30,51 @@ if DASHBOARD_PASSWORD:
                 [data-testid="stHeader"] { display: none !important; }
                 footer { visibility: hidden !important; }
                 
-                /* Radial background gradient - Darker Shade of Blue */
+                /* Radial background gradient matching dashboard theme */
                 .stApp {
-                    background: radial-gradient(circle at 50% 10%, #0b1a30 0%, #050b14 100%) !important;
+                    background: radial-gradient(circle at 50% 10%, #0d1e3d 0%, #08090d 100%) !important;
                     font-family: 'Outfit', sans-serif !important;
                 }
                 
-                /* Login Card container */
+                /* Login Card container with Grid Mesh matching AI Insights */
                 .login-card {
                     max-width: 440px;
                     margin: 60px auto 10px auto;
                     padding: 40px 30px;
-                    background: rgba(255, 255, 255, 0.02) !important;
-                    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+                    background: radial-gradient(circle at 100% 100%, #0c1020 0%, #111219 100%) !important;
+                    border: 1px solid #1c2236 !important;
                     border-radius: 24px !important;
                     box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7) !important;
-                    backdrop-filter: blur(25px) !important;
-                    -webkit-backdrop-filter: blur(25px) !important;
                     text-align: center;
                     color: white;
+                    position: relative;
+                    overflow: hidden;
                 }
                 
-                /* Floating glowing credit card icon */
+                /* Grid mesh overlay on card */
+                .login-card::before {
+                    content: "";
+                    position: absolute;
+                    top: 0; left: 0; right: 0; bottom: 0;
+                    background-image: linear-gradient(rgba(255, 255, 255, 0.007) 1px, transparent 1px),
+                                      linear-gradient(90deg, rgba(255, 255, 255, 0.007) 1px, transparent 1px);
+                    background-size: 20px 20px;
+                    pointer-events: none;
+                    z-index: 0;
+                }
+                
+                /* Keep text elements above grid mesh */
+                .login-card * {
+                    position: relative;
+                    z-index: 1;
+                }
+                
+                /* Floating glowing lock icon */
                 .icon-glow {
-                    font-size: 4rem;
+                    font-size: 3.5rem;
                     display: inline-block;
                     margin-bottom: 20px;
-                    filter: drop-shadow(0 0 15px rgba(29, 78, 216, 0.5));
+                    filter: drop-shadow(0 0 15px rgba(37, 99, 235, 0.5));
                     animation: float 3s ease-in-out infinite;
                 }
                 
@@ -70,7 +88,7 @@ if DASHBOARD_PASSWORD:
                     font-size: 2.2rem;
                     font-weight: 800;
                     margin-bottom: 8px;
-                    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+                    background: linear-gradient(135deg, #ffffff 0%, #a0aec0 100%);
                     -webkit-background-clip: text;
                     -webkit-text-fill-color: transparent;
                 }
@@ -84,8 +102,8 @@ if DASHBOARD_PASSWORD:
                 
                 /* Custom styling for Streamlit's text input container */
                 div[data-baseweb="input"] {
-                    background-color: rgba(255, 255, 255, 0.03) !important;
-                    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+                    background-color: rgba(255, 255, 255, 0.02) !important;
+                    border: 1px solid #1c1e28 !important;
                     border-radius: 12px !important;
                     color: white !important;
                     height: 50px !important;
@@ -131,7 +149,7 @@ if DASHBOARD_PASSWORD:
                 .footer-info {
                     margin-top: 25px;
                     font-size: 0.75rem;
-                    color: #718096;
+                    color: #4a5568;
                     line-height: 1.4;
                 }
             </style>
@@ -140,7 +158,7 @@ if DASHBOARD_PASSWORD:
         # Render custom glassmorphic Card
         st.markdown("""
             <div class="login-card">
-                <div class="icon-glow">💳</div>
+                <div class="icon-glow">🔒</div>
                 <div class="title-text">Expense Tracker</div>
                 <div class="sub-text">Private Budget Dashboard & CC Optimizer.<br>Enter password to unlock.</div>
             </div>
@@ -174,6 +192,22 @@ def load_data():
     return df
 
 df = load_data()
+
+if df.empty:
+    st.info("No transaction data found. Start logging transactions via your Telegram bot to populate this dashboard.")
+    st.stop()
+
+# --- DATA PRE-PROCESSING ---
+df['amount'] = df['amount'].astype(float)
+df['timestamp'] = pd.to_datetime(df['timestamp'])
+df['date'] = df['timestamp'].dt.date
+
+# Sidebar filter - Billing Cycle
+cycles = sorted(df['billing_cycle'].unique(), reverse=True)
+selected_cycle = st.sidebar.selectbox("Select Billing Cycle:", cycles)
+
+# Filter dataframe for selected cycle
+cycle_df = df[df['billing_cycle'] == selected_cycle]
 
 # Helper formatting function
 def format_rupiah(value):
