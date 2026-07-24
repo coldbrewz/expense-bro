@@ -539,29 +539,17 @@ with bottom_col1:
             }
             acc_badge = acc_labels.get(row['account'], row['account'].upper())
             
-            recent_html.append(f"""
-            <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #1c1e28;">
-                <div style="display: flex; align-items: center;">
-                    <div style="
-                        background: rgba(255,255,255,0.01);
-                        border: 1px solid #1c1e28;
-                        border-radius: 12px;
-                        width: 42px;
-                        height: 42px;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        font-size: 1.25rem;
-                        margin-right: 12px;
-                    ">{icon}</div>
-                    <div>
-                        <div style="color: #ffffff; font-size: 0.9rem; font-weight: 600; font-family: 'Outfit';">{row['merchant']}</div>
-                        <div style="color: #4a5568; font-size: 0.75rem; margin-top: 2px;">{row['date']} • <span style="color: {color}; font-weight: 600; font-size: 0.7rem; text-transform: uppercase;">{row['expense_category']}</span> • <span style="color: #a0aec0; font-size: 0.7rem;">{acc_badge}</span></div>
-                    </div>
-                </div>
-                <div style="color: #ef4444; font-size: 0.95rem; font-weight: 700; font-family: 'Outfit';">{formatted_amt}</div>
-            </div>
-            """)
+            recent_html.append(
+                f'<div style="display:flex; align-items:center; justify-content:space-between; padding:12px 0; border-bottom:1px solid #1c1e28;">'
+                f'<div style="display:flex; align-items:center;">'
+                f'<div style="background:rgba(255,255,255,0.01); border:1px solid #1c1e28; border-radius:12px; width:42px; height:42px; display:flex; align-items:center; justify-content:center; font-size:1.25rem; margin-right:12px;">{icon}</div>'
+                f'<div>'
+                f'<div style="color:#ffffff; font-size:0.9rem; font-weight:600; font-family:Outfit;">{row["merchant"]}</div>'
+                f'<div style="color:#4a5568; font-size:0.75rem; margin-top:2px;">{row["date"]} &bull; <span style="color:{color}; font-weight:600; font-size:0.7rem; text-transform:uppercase;">{row["expense_category"]}</span> &bull; <span style="color:#a0aec0; font-size:0.7rem;">{acc_badge}</span></div>'
+                f'</div></div>'
+                f'<div style="color:#ef4444; font-size:0.95rem; font-weight:700; font-family:Outfit;">{formatted_amt}</div>'
+                f'</div>'
+            )
     else:
         recent_html.append('<div style="color:#718096; text-align:center; padding: 40px 0;">No transactions recorded this cycle.</div>')
         
@@ -617,39 +605,13 @@ with bottom_col2:
 with bottom_col3:
     # ✨ AI Insights & Cloud Mesh Layout
     insights_html = []
-    insights_html.append(f"""
-    <div class="dashboard-card" style="
-        height: 480px; 
-        background: radial-gradient(circle at 100% 100%, #0c1020 0%, #0d0e12 100%);
-        border: 1px solid #1c2236;
-        position: relative;
-        overflow: hidden;
-    ">
-        <!-- Style Inspo Grid Mesh Overlay -->
-        <div style="
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background-image: linear-gradient(rgba(255, 255, 255, 0.007) 1px, transparent 1px),
-                              linear-gradient(90deg, rgba(255, 255, 255, 0.007) 1px, transparent 1px);
-            background-size: 24px 24px;
-            pointer-events: none;
-        "></div>
-        
-        <div style="position: relative; z-index: 1;">
-            <div class="card-header">
-                <span>✨ AI Insights & Tips</span>
-                <span style="
-                    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-                    color: white;
-                    font-size: 0.65rem;
-                    padding: 3px 8px;
-                    border-radius: 20px;
-                    font-weight: 700;
-                    text-transform: uppercase;
-                    letter-spacing: 0.5px;
-                ">Smart Hub</span>
-            </div>
-    """)
+    insights_html.append(
+        '<div class="dashboard-card" style="height:480px; background:radial-gradient(circle at 100% 100%,#0c1020 0%,#0d0e12 100%); border:1px solid #1c2236; position:relative; overflow:hidden;">'
+        '<div style="position:absolute; top:0; left:0; right:0; bottom:0; background-image:linear-gradient(rgba(255,255,255,0.007) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.007) 1px,transparent 1px); background-size:24px 24px; pointer-events:none;"></div>'
+        '<div style="position:relative; z-index:1;">'
+        '<div class="card-header"><span>✨ AI Insights &amp; Tips</span>'
+        '<span style="background:linear-gradient(135deg,#2563eb 0%,#1d4ed8 100%); color:white; font-size:0.65rem; padding:3px 8px; border-radius:20px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">Smart Hub</span></div>'
+    )
     
     # Generate dynamic lists of insights
     bullets = []
@@ -676,19 +638,11 @@ with bottom_col3:
     bullets.append("💡 <b>Pockets Yield:</b> Hold your main payroll savings inside Bank Saqu high-yield pockets to earn interest, only drawing via BCA/Line as needed.")
     
     for bullet in bullets:
-        insights_html.append(f"""
-        <div style="
-            display: flex;
-            align-items: flex-start;
-            margin-bottom: 16px;
-            background: rgba(255, 255, 255, 0.015);
-            border: 1px solid rgba(255, 255, 255, 0.03);
-            border-radius: 12px;
-            padding: 12px;
-        ">
-            <div style="font-size: 0.85rem; color: #cbd5e1; line-height: 1.45;">{bullet}</div>
-        </div>
-        """)
+        insights_html.append(
+            f'<div style="display:flex; align-items:flex-start; margin-bottom:16px; background:rgba(255,255,255,0.015); border:1px solid rgba(255,255,255,0.03); border-radius:12px; padding:12px;">'
+            f'<div style="font-size:0.85rem; color:#cbd5e1; line-height:1.45;">{bullet}</div>'
+            f'</div>'
+        )
         
     insights_html.append("""
         </div>
