@@ -1,5 +1,6 @@
 pyTelegramBotAPI
 pypdf
+cryptography
 streamlit
 pandas
 plotly
