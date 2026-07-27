@@ -329,8 +329,8 @@ def render_kpi_card(title, value, subtitle, icon, delta=None, delta_color="green
     )
 
 
-# --- HERO HEADER & CYCLE SELECTOR ---
-header_col1, header_col2 = st.columns([3, 1])
+# --- HERO HEADER & CONTROLS ---
+header_col1, header_col2, header_col3 = st.columns([2.5, 1.2, 0.8])
 
 with header_col1:
     st.markdown(
@@ -346,6 +346,11 @@ with header_col1:
 with header_col2:
     cycles = sorted(df["billing_cycle"].unique(), reverse=True)
     selected_cycle = st.selectbox("📅 Billing Cycle", cycles)
+
+with header_col3:
+    st.markdown('<div style="height: 28px;"></div>', unsafe_allow_html=True)
+    if st.button("🔄 Refresh", help="Reload latest database transactions without re-entering password", use_container_width=True):
+        st.rerun()
 
 cycle_df = df[df["billing_cycle"] == selected_cycle]
 
