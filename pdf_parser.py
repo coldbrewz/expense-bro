@@ -54,82 +54,132 @@ def detect_bank_from_text(text, filename=""):
 def parse_statement_text(text):
     """
     Processes raw statement text line-by-line to parse transaction rows.
+    Supports a wide variety of Indonesian bank formats (Permata, BCA, Saqu, Line Bank).
     """
     transactions = []
     lines = text.split("\n")
     
-    # Patterns to match date at the start of a transaction line:
-    # 1. 25/06 or 25-06
-    # 2. 25 JUN or 25 JUN 26
-    # 3. 25-JUN
-    date_pattern = r'^(\d{2}/\d{2}|\d{2}-\d{2}|\d{2}\s+(?:JAN|FEB|MAR|APR|MEI|MAY|JUN|JUL|AGU|AUG|SEP|OKT|OCT|NOV|DES|DEC))'
-    
-    # Pattern to match numbers at the end of a transaction line (e.g. 150.000,00 or 150,000 or 150.000 CR or 150.000-)
-    amount_pattern = r'([\d.,]+)\s*(CR|-)?\s*$'
+    # Month map for name matching
+    months_map = {
+        'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'mei': 5, 'may': 5, 'jun': 6,
+        'jul': 7, 'agu': 8, 'aug': 8, 'sep': 9, 'okt': 10, 'oct': 10, 'nov': 11, 'des': 12, 'dec': 12
+    }
     
     now = datetime.now()
     now_year = now.year
     current_month = now.month
+
+    # Flexible Regex for Dates:
+    # Matches: DD/MM, DD/MM/YY, DD/MM/YYYY, DD-MM-YY, DD.MM.YYYY, DD MMM, DD-MMM-YY, DD MMM YYYY
+    date_regex = re.compile(
+        r'\b(\d{1,2})[/\.\-]([0-9]{1,2}|[a-zA-Z]{3})(?:[/\.\-]([0-9]{2,4}))?\b',
+        re.IGNORECASE
+    )
     
+    # Flexible Regex for Amounts at or near the end of a line:
+    # Matches: 150.000,00 | 150,000.00 | 150.000 | 150000 | 150.000,00 CR | 150.000,00-
+    amount_regex = re.compile(
+        r'([\d\.,]{3,15})\s*(CR|-|DB)?\s*$',
+        re.IGNORECASE
+    )
+
     for line in lines:
-        line = line.strip()
-        
-        # Check if line starts with a transaction date
-        date_match = re.search(date_pattern, line, re.IGNORECASE)
-        if not date_match:
+        line_clean = line.strip()
+        if not line_clean or len(line_clean) < 10:
             continue
             
-        # Check if line ends with an amount
-        amount_match = re.search(amount_pattern, line)
-        if not amount_match:
+        # Find all date occurrences in the line
+        date_matches = list(date_regex.finditer(line_clean))
+        if not date_matches:
             continue
             
-        date_raw = date_match.group(0)
-        amount_str = amount_match.group(1)
-        suffix = amount_match.group(2) # CR or -
+        # Take the first date match (Transaction Date)
+        first_date_match = date_matches[0]
+        # Ensure the date occurs near the beginning of the line (index < 20)
+        if first_date_match.start() > 20:
+            continue
+            
+        # Find amount match at end of line
+        amt_match = amount_regex.search(line_clean)
+        if not amt_match:
+            continue
+            
+        date_str_raw = first_date_match.group(0)
+        day_str = first_date_match.group(1)
+        month_str = first_date_match.group(2)
+        year_str = first_date_match.group(3)
         
-        # The merchant info resides in the middle of the line
-        merchant_part = line[len(date_raw):-len(amount_match.group(0))].strip()
+        amount_raw = amt_match.group(1)
+        suffix = (amt_match.group(2) or "").upper()
         
-        # Clean the merchant part by removing posting dates (e.g. 26/06 or 26 JUN)
-        # Often, statements list transaction date followed immediately by posting date.
-        merchant_part = re.sub(r'^\d{2}/\d{2}\s+|\s+\d{2}/\d{2}\b', '', merchant_part)
-        merchant_part = re.sub(r'^\d{2}\s+(?:JAN|FEB|MAR|APR|MEI|MAY|JUN|JUL|AGU|AUG|SEP|OKT|OCT|NOV|DES|DEC)\s+', '', merchant_part, flags=re.IGNORECASE)
+        # Parse Month
+        if month_str.isdigit():
+            m_num = int(month_str)
+        else:
+            m_num = months_map.get(month_str.lower(), 0)
+            
+        if m_num < 1 or m_num > 12:
+            continue
+            
+        day_num = int(day_str)
+        if day_num < 1 or day_num > 31:
+            continue
+            
+        # Parse Year
+        if year_str:
+            y_num = int(year_str)
+            if y_num < 100:
+                y_num += 2000
+        else:
+            y_num = now_year
+            if m_num > current_month:
+                y_num = now_year - 1
+                
+        tx_date = f"{y_num}-{m_num:02d}-{day_num:02d}"
+        
+        # Extract merchant string (everything between date(s) and amount)
+        start_pos = first_date_match.end()
+        if len(date_matches) > 1 and date_matches[1].start() < (start_pos + 15):
+            start_pos = date_matches[1].end()
+            
+        end_pos = amt_match.start()
+        merchant_part = line_clean[start_pos:end_pos].strip()
+        
+        # Clean merchant string
+        merchant_part = re.sub(r'^[/\.\-\s]+|[/\.\-\s]+$', '', merchant_part)
         
         # Clean amount digits
-        if re.search(r'[.,]00$', amount_str):
-            amount_str = amount_str[:-3]
-        digits = re.sub(r'\D', '', amount_str)
+        clean_amt_str = amount_raw
+        if re.search(r'[\.,]00$', clean_amt_str):
+            clean_amt_str = clean_amt_str[:-3]
+        
+        digits = re.sub(r'\D', '', clean_amt_str)
         if not digits:
             continue
         amount = int(digits)
         
-        # Identify credit payments / refunds / thank-you payments
-        is_payment = False
+        if amount == 0:
+            continue
+            
+        # Check if credit payment / refund / thank-you payment
         merchant_upper = merchant_part.upper()
+        is_payment = False
         if (
             suffix in ['-', 'CR'] or 
-            'CR' in line or 
+            'CR' in line_clean.upper() or 
             'THANK YOU' in merchant_upper or 
             'PEMBAYARAN' in merchant_upper or
-            'PAYMENT' in merchant_upper
+            'PAYMENT' in merchant_upper or
+            ('KREDIT' in merchant_upper and 'BUNGA' not in merchant_upper)
         ):
             is_payment = True
             
-        # Filter out bank credit card fees, interest, or billing statements if needed.
-        # But we mostly just want to ignore card payments (since we are tracking retail spend).
         if is_payment:
             continue
             
-        # Standardize transaction date to YYYY-MM-DD
-        tx_date, tx_month = parse_date_to_yyyy_mm_dd(date_raw, now_year)
-        if not tx_date:
+        # If merchant name is empty or just numbers, skip
+        if not merchant_part or merchant_part.isdigit() or len(merchant_part) < 2:
             continue
-            
-        # Year-crossing adjustments: if statement contains a month that is higher than current month,
-        # it belongs to the previous year (e.g., statement generated in January for December transactions).
-        if tx_month > current_month:
-            tx_date = tx_date.replace(str(now_year), str(now_year - 1), 1)
             
         transactions.append({
             "date": tx_date,
