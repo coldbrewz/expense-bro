@@ -25,9 +25,113 @@ def extract_pdf_transactions(file_bytes, password=None, filename=""):
         text += page.extract_text() + "\n"
         
     account_name = detect_bank_from_text(text, filename)
-    parsed_txs = parse_statement_text(text)
     
+    # Extract statement year from text
+    now_year = datetime.now().year
+    statement_year = now_year
+    cetak_match = re.search(r'(?:Tanggal\s+Cetak|Periode\s+Laporan|Statement\s+Period|PERIODE\s*:?).*?(\d{2,4})', text, re.IGNORECASE)
+    if cetak_match:
+        y_str = cetak_match.group(1)
+        y_val = int(y_str)
+        if y_val < 100:
+            y_val += 2000
+        if 2020 <= y_val <= 2035:
+            statement_year = y_val
+
+    if account_name == "bca":
+        parsed_txs = parse_bca_statement(text, statement_year)
+    else:
+        parsed_txs = parse_statement_text(text)
+        
     return parsed_txs, account_name
+
+def parse_bca_statement(text, statement_year=2026):
+    """
+    Dedicated block parser for BCA Tahapan Xpresi / BCA statement PDFs.
+    Combines multi-line description wraps and extracts only debit (DB) expenses.
+    """
+    transactions = []
+    lines = text.split("\n")
+    
+    row_start_regex = re.compile(r'^\s*(\d{2})/(\d{2})\s+(.*)', re.IGNORECASE)
+    amount_db_regex = re.compile(r'([\d\.,]{3,15})\s+DB\b', re.IGNORECASE)
+
+    raw_blocks = []
+    current_block = []
+    
+    for line in lines:
+        line_str = line.strip()
+        if not line_str:
+            continue
+            
+        if row_start_regex.match(line_str):
+            if current_block:
+                raw_blocks.append(" ".join(current_block))
+                current_block = []
+        current_block.append(line_str)
+        
+    if current_block:
+        raw_blocks.append(" ".join(current_block))
+        
+    for block in raw_blocks:
+        match = row_start_regex.match(block)
+        if not match:
+            continue
+            
+        d_str, m_str, rest = match.group(1), match.group(2), match.group(3)
+        day_num, m_num = int(d_str), int(m_str)
+        
+        if not (1 <= day_num <= 31 and 1 <= m_num <= 12):
+            continue
+            
+        # Ignore credit lines (TRSF E-BANKING CR, SETORAN VIA CDM, or blocks without DB)
+        if ' CR ' in f" {block} " or 'SETORAN' in block.upper() or 'SALDO AWAL' in block.upper():
+            continue
+            
+        amt_match = amount_db_regex.search(block)
+        if not amt_match:
+            continue
+            
+        amount_raw = amt_match.group(1)
+        clean_amt_str = amount_raw
+        if re.search(r'[\.,]00$', clean_amt_str):
+            clean_amt_str = clean_amt_str[:-3]
+            
+        digits = re.sub(r'\D', '', clean_amt_str)
+        if not digits:
+            continue
+            
+        amount = int(digits)
+        if amount == 0:
+            continue
+            
+        merchant_text = rest
+        
+        # Clean common BCA prefixes
+        merchant_text = re.sub(r'(?i)^TRSF\s+E-BANKING\s+DB\s+\S+\s*', '', merchant_text)
+        merchant_text = re.sub(r'(?i)^TRANSAKSI\s+DEBIT\s+(?:TGL:\s*\d{2}/\d{2}\s*)?(?:QRC\d+\s*)?(?:\d+\.00)?', '', merchant_text)
+        merchant_text = re.sub(r'(?i)^FLAZZ\s+BCA\s+TOPUP\s*', 'FLAZZ BCA TOPUP ', merchant_text)
+        merchant_text = re.sub(r'(?i)^BIAYA\s+ADM\s*\d*\s*', 'BIAYA ADM ', merchant_text)
+        
+        # Clean merchant suffixes
+        merchant_text = re.sub(r'[\d\.,]+\s+DB.*$', '', merchant_text, flags=re.IGNORECASE)
+        merchant_text = re.sub(r'[\d\.,]+\s*$', '', merchant_text)
+        merchant_text = re.sub(r'\s+', ' ', merchant_text).strip()
+        
+        if 'BIAYA ADM' in merchant_text.upper():
+            continue
+            
+        if not merchant_text or len(merchant_text) < 2:
+            merchant_text = "BCA Debit Transaction"
+            
+        tx_date = f"{statement_year}-{m_num:02d}-{day_num:02d}"
+        transactions.append({
+            "date": tx_date,
+            "merchant": merchant_text,
+            "amount": amount
+        })
+        
+    return transactions
 
 def detect_bank_from_text(text, filename=""):
     """
