@@ -554,7 +554,7 @@ def handle_document(message):
                 duplicate_count += 1
                 continue
                 
-            category = parser.categorize_merchant(tx["merchant"])
+            category = parser.categorize_merchant(tx["merchant"], account=account_name)
             if account_name != "permata_cc":
                 category = "Non-CC"
             expense_category = parser.categorize_expense(tx["merchant"])

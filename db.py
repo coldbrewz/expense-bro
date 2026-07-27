@@ -25,13 +25,22 @@ def init_db():
             expense_category TEXT NOT NULL DEFAULT 'misc'
         )
     """)
-    # Migration: check if 'account' column exists in existing database
+    # Migration: check if 'account' or 'expense_category' columns exist
     cursor.execute("PRAGMA table_info(transactions)")
     columns = [col[1] for col in cursor.fetchall()]
     if 'account' not in columns:
         cursor.execute("ALTER TABLE transactions ADD COLUMN account TEXT NOT NULL DEFAULT 'permata_cc'")
     if 'expense_category' not in columns:
         cursor.execute("ALTER TABLE transactions ADD COLUMN expense_category TEXT NOT NULL DEFAULT 'misc'")
+        
+    # Auto-fix: re-categorize any Permata CC transactions previously saved as Non-CC
+    cursor.execute("SELECT id, merchant FROM transactions WHERE account = 'permata_cc' AND category NOT IN ('ONLINE', 'OFFLINE')")
+    rows_to_fix = cursor.fetchall()
+    if rows_to_fix:
+        import parser
+        for tx_id, merchant in rows_to_fix:
+            new_cat = parser.categorize_merchant(merchant, account='permata_cc')
+            cursor.execute("UPDATE transactions SET category = ? WHERE id = ?", (new_cat, tx_id))
     conn.commit()
     conn.close()
 

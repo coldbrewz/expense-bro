@@ -70,23 +70,27 @@ def extract_merchant_fallback(text):
             return text[start_idx:start_idx+len(m)]
     return None
 
-def categorize_merchant(merchant):
+def categorize_merchant(merchant, account="permata_cc"):
     """
-    Categorizes the merchant based on the exact specified regex sets.
+    Categorizes the merchant for Permata CC as ONLINE or OFFLINE.
+    For non-CC accounts (bank_saqu, bca, line_bank, general), returns 'Non-CC'.
     """
-    if not merchant:
+    if account != "permata_cc":
         return "Non-CC"
         
+    if not merchant:
+        return "OFFLINE"
+        
     merchant_lower = merchant.lower()
-    online_pattern = r'(tokopedia|shopee|gojek|grab|midtrans|xendit|netflix|spotify|google|apple)'
-    offline_pattern = r'(edc|alfamart|indomaret|starbucks|superindo|transmart|mcdonalds|kfc|cgv|xxi)'
+    
+    # Comprehensive ONLINE merchants pattern
+    online_pattern = r'(tokopedia|shopee|gojek|gopay|grab|traveloka|midtrans|xendit|dana|ovo|linkaja|blibli|lazada|bukalapak|tikettokopedia|tiket\.com|netflix|spotify|google|apple|youtube|steam|playstation|disney|aws|cloud|agoda|airbnb|booking)'
     
     if re.search(online_pattern, merchant_lower):
         return "ONLINE"
-    elif re.search(offline_pattern, merchant_lower):
-        return "OFFLINE"
     else:
-        return "Non-CC"
+        # Permata CC transactions are strictly ONLINE or OFFLINE retail spends
+        return "OFFLINE"
 
 def detect_account(text):
     """
