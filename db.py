@@ -41,6 +41,17 @@ def init_db():
         for tx_id, merchant in rows_to_fix:
             new_cat = parser.categorize_merchant(merchant, account='permata_cc')
             cursor.execute("UPDATE transactions SET category = ? WHERE id = ?", (new_cat, tx_id))
+            
+    # Auto-fix: re-evaluate budget expense categories for existing 'misc' rows
+    cursor.execute("SELECT id, merchant FROM transactions WHERE expense_category = 'misc'")
+    misc_rows = cursor.fetchall()
+    if misc_rows:
+        import parser
+        for tx_id, merchant in misc_rows:
+            new_exp_cat = parser.categorize_expense(merchant)
+            if new_exp_cat != 'misc':
+                cursor.execute("UPDATE transactions SET expense_category = ? WHERE id = ?", (new_exp_cat, tx_id))
+                
     conn.commit()
     conn.close()
 

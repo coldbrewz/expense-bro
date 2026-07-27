@@ -84,7 +84,7 @@ def categorize_merchant(merchant, account="permata_cc"):
     merchant_lower = merchant.lower()
     
     # Comprehensive ONLINE merchants pattern
-    online_pattern = r'(tokopedia|shopee|gojek|gopay|grab|traveloka|midtrans|xendit|dana|ovo|linkaja|blibli|lazada|bukalapak|tikettokopedia|tiket\.com|netflix|spotify|google|apple|youtube|steam|playstation|disney|aws|cloud|agoda|airbnb|booking)'
+    online_pattern = r'(tokopedia|shopee|gojek|gopay|grab|traveloka|midtrans|xendit|dana|ovo|linkaja|blibli|lazada|bukalapak|tikettokopedia|tiket\.com|netflix|spotify|google|apple|youtube|steam|playstation|disney|aws|cloud|agoda|airbnb|booking|finnet|telkomsel|halodoc|kereta api|kai)'
     
     if re.search(online_pattern, merchant_lower):
         return "ONLINE"
@@ -120,12 +120,12 @@ def categorize_expense(merchant, text=""):
     
     # Detailed expense categories rules
     rules = {
-        'food': r'(starbucks|mcdonalds|kfc|coffee|resto|bakery|food|burger|pizza|dunkin|jco|sushi|kopi|warung|kuliner|bakso|mie|kantin)',
-        'groceries': r'(alfamart|indomaret|superindo|transmart|hypermart|lotte|mart|minimarket|market|sayur|toko kelontong)',
-        'transport': r'(gojek|grab|go-car|go-ride|taxi|bluebird|kereta|kai|flight|tiket|traveloka|mrt|lrt|bensin|pertamina|shell|toll|parkir)',
-        'entertainment': r'(netflix|spotify|cgv|xxi|cinema|bioskop|disney|youtube|game|steam|playstation|ticket)',
+        'food': r'(starbucks|mcdonalds|kfc|coffee|resto|bakery|food|burger|pizza|dunkin|jco|sushi|kopi|warung|kuliner|bakso|mie|kantin|fuego|roasthouse|tarobun|ngopi|rmu)',
+        'groceries': r'(alfamart|indomaret|superindo|transmart|hypermart|lotte|mart|minimarket|market|sayur|toko kelontong|midi|alfamidi)',
+        'transport': r'(gojek|grab|go-car|go-ride|taxi|bluebird|kereta|kai|flight|tiket|traveloka|mrt|lrt|bensin|pertamina|shell|toll|parkir|spbu|bp ahmad|bp\s+)',
+        'entertainment': r'(netflix|spotify|cgv|xxi|cinema|bioskop|disney|youtube|game|steam|playstation|ticket|karaoke|studio karaoke)',
         'shopping': r'(tokopedia|shopee|lazada|blibli|bukalapak|uniqlo|zara|h&m|mall|decathlon|ikea|ace hardware|clothing|fashion|baju)',
-        'bills': r'(midtrans|xendit|pln|pdam|telkom|indihome|wifi|listrik|pulsa|bpjs|pajak|asuransi|billing|subscription|tagihan)',
+        'bills': r'(midtrans|xendit|pln|pdam|telkom|indihome|wifi|listrik|pulsa|bpjs|pajak|asuransi|billing|subscription|tagihan|finnet|telkomsel|halodoc)',
         'investment': r'(ajaib|bibit|bareksa|pluang|crypto|binance|stockbit|saham|reksadana|emas|gold|investasi)'
     }
     
