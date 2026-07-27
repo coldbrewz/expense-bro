@@ -17,7 +17,7 @@ if DASHBOARD_PASSWORD:
         st.session_state["authenticated"] = False
 
     if not st.session_state["authenticated"]:
-        # Custom CSS Injection matching login.webp hero page inspo
+        # Custom CSS Injection for responsive mobile-friendly dark theme
         st.markdown(
             """
             <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -29,49 +29,71 @@ if DASHBOARD_PASSWORD:
                 
                 /* Deep dark space background */
                 .stApp {
-                    background: #06070a !important;
+                    background: radial-gradient(circle at 50% 10%, #0d1e3d 0%, #08090d 100%) !important;
                     font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif !important;
                 }
                 
-                /* Full screen split container matching login.webp */
-                .login-hero-container {
-                    display: flex;
-                    max-width: 1050px;
-                    margin: 40px auto;
-                    background: #0a0c14;
-                    border: 1px solid #1c2236;
-                    border-radius: 28px;
-                    overflow: hidden;
-                    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.8);
-                }
-                
-                /* Left Hero Panel */
-                .hero-left-panel {
-                    flex: 1.15;
-                    background: radial-gradient(circle at 10% 10%, #1e3a8a 0%, #0f172a 55%, #030712 100%);
-                    padding: 55px 45px;
-                    display: flex;
-                    flex-direction: column;
-                    justify-content: space-between;
+                /* Responsive Login Card */
+                .login-card {
+                    max-width: 440px;
+                    width: 90%;
+                    margin: 60px auto 20px auto;
+                    padding: 40px 30px;
+                    background: radial-gradient(circle at 100% 100%, #0c1020 0%, #111219 100%) !important;
+                    border: 1px solid #1c2236 !important;
+                    border-radius: 24px !important;
+                    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7) !important;
+                    text-align: center;
+                    color: white;
                     position: relative;
                     overflow: hidden;
-                    border-right: 1px solid rgba(255, 255, 255, 0.05);
                 }
                 
-                /* Grid mesh overlay on left hero panel */
-                .hero-left-panel::before {
+                /* Grid mesh overlay on card */
+                .login-card::before {
                     content: "";
                     position: absolute;
                     top: 0; left: 0; right: 0; bottom: 0;
-                    background-image: linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-                                      linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
-                    background-size: 28px 28px;
+                    background-image: linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+                                      linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+                    background-size: 24px 24px;
                     pointer-events: none;
+                    z-index: 0;
                 }
                 
-                .hero-left-panel * {
+                .login-card * {
                     position: relative;
                     z-index: 1;
+                }
+                
+                .icon-glow {
+                    font-size: 3.2rem;
+                    display: inline-block;
+                    margin-bottom: 16px;
+                    filter: drop-shadow(0 0 15px rgba(37, 99, 235, 0.5));
+                    animation: float 3s ease-in-out infinite;
+                }
+                
+                @keyframes float {
+                    0% { transform: translateY(0px); }
+                    50% { transform: translateY(-8px); }
+                    100% { transform: translateY(0px); }
+                }
+                
+                .title-text {
+                    font-size: 2rem;
+                    font-weight: 800;
+                    margin-bottom: 6px;
+                    background: linear-gradient(135deg, #ffffff 0%, #a0aec0 100%);
+                    -webkit-background-clip: text;
+                    -webkit-text-fill-color: transparent;
+                }
+                
+                .sub-text {
+                    color: #8a9ca8;
+                    font-size: 0.9rem;
+                    margin-bottom: 25px;
+                    line-height: 1.5;
                 }
                 
                 /* Custom styling for Streamlit's text input container */
@@ -80,19 +102,19 @@ if DASHBOARD_PASSWORD:
                     border: 1px solid #1c2238 !important;
                     border-radius: 14px !important;
                     color: white !important;
-                    height: 52px !important;
+                    height: 50px !important;
                     transition: all 0.3s ease !important;
                 }
                 
                 div[data-baseweb="input"]:focus-within {
                     border-color: #3b82f6 !important;
-                    box-shadow: 0 0 20px rgba(59, 130, 246, 0.35) !important;
+                    box-shadow: 0 0 15px rgba(59, 130, 246, 0.35) !important;
                 }
                 
                 input {
                     color: white !important;
                     text-align: center !important;
-                    font-size: 1.15rem !important;
+                    font-size: 1.1rem !important;
                 }
                 
                 /* Custom styling for Streamlit button */
@@ -101,13 +123,13 @@ if DASHBOARD_PASSWORD:
                     color: white !important;
                     border: 1px solid rgba(255, 255, 255, 0.1) !important;
                     border-radius: 14px !important;
-                    padding: 14px 24px !important;
+                    padding: 13px 24px !important;
                     font-weight: 700 !important;
-                    font-size: 1.05rem !important;
+                    font-size: 1rem !important;
                     width: 100% !important;
                     transition: all 0.3s ease !important;
                     box-shadow: 0 4px 20px rgba(29, 78, 216, 0.4) !important;
-                    margin-top: 20px !important;
+                    margin-top: 15px !important;
                     cursor: pointer !important;
                 }
                 
@@ -117,39 +139,39 @@ if DASHBOARD_PASSWORD:
                     color: white !important;
                 }
                 
-                button[kind="secondary"]:active {
-                    transform: translateY(0px) !important;
+                /* Responsive adjustments for mobile screens */
+                @media (max-width: 600px) {
+                    .login-card {
+                        margin: 20px auto !important;
+                        padding: 30px 20px !important;
+                        border-radius: 20px !important;
+                    }
+                    .title-text {
+                        font-size: 1.7rem !important;
+                    }
+                    .sub-text {
+                        font-size: 0.85rem !important;
+                    }
                 }
             </style>
         """,
             unsafe_allow_html=True,
         )
 
-        # Render left hero panel and right login header via single-line html
+        # Self-contained login card header
         st.markdown(
-            '<div class="login-hero-container">'
-            '<div class="hero-left-panel">'
-            '<div>'
-            '<div style="display:inline-flex; align-items:center; gap:8px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); padding:6px 14px; border-radius:20px; font-size:0.8rem; font-weight:600; color:#93c5fd;">⚡ Private Suite v2.0</div>'
-            '<div style="font-size:2.4rem; font-weight:800; line-height:1.2; color:#ffffff; margin-top:30px; letter-spacing:-0.5px;">Smart Finance &amp;<br>Cashback Optimizer</div>'
-            '<div style="color:#94a3b8; font-size:0.95rem; line-height:1.6; margin-top:15px;">Track multi-account budgets, optimize credit card promo yields, and visualize cash flows in real-time.</div>'
-            '</div>'
-            '<div style="display:flex; flex-direction:column; gap:12px; margin-top:40px;">'
-            '<div style="display:flex; align-items:center; gap:12px; background:rgba(15,23,42,0.6); border:1px solid rgba(255,255,255,0.06); padding:12px 16px; border-radius:14px; color:#e2e8f0; font-size:0.88rem; font-weight:600;"><span>💳</span> Permata CC Cashback Gate Engine</div>'
-            '<div style="display:flex; align-items:center; gap:12px; background:rgba(15,23,42,0.6); border:1px solid rgba(255,255,255,0.06); padding:12px 16px; border-radius:14px; color:#e2e8f0; font-size:0.88rem; font-weight:600;"><span>💼</span> Multi-Bank Wallet Allocation</div>'
-            '<div style="display:flex; align-items:center; gap:12px; background:rgba(15,23,42,0.6); border:1px solid rgba(255,255,255,0.06); padding:12px 16px; border-radius:14px; color:#e2e8f0; font-size:0.88rem; font-weight:600;"><span>📋</span> Interactive Spreadsheet Manager</div>'
-            '</div>'
-            '</div>'
-            '<div style="flex:1; padding:55px 40px; display:flex; flex-direction:column; justify-content:center; background:#080910;">'
-            '<div>'
-            '<div style="font-size:0.75rem; font-weight:700; letter-spacing:1.5px; color:#3b82f6; text-transform:uppercase; margin-bottom:8px;">PRIVATE DASHBOARD</div>'
-            '<div style="font-size:2.2rem; font-weight:800; color:#ffffff; margin-bottom:6px; letter-spacing:-0.5px;">Welcome Back! 👋</div>'
-            '<div style="color:#64748b; font-size:0.92rem; margin-bottom:30px;">Enter your access password to unlock.</div>'
-            '</div>',
+            """
+            <div class="login-card">
+                <div class="icon-glow">🔒</div>
+                <div class="title-text">Expense Tracker</div>
+                <div class="sub-text">Private Budget Dashboard & CC Optimizer.<br>Enter password to unlock.</div>
+            </div>
+            """,
             unsafe_allow_html=True,
         )
 
-        col_space1, col_form, col_space2 = st.columns([0.05, 0.9, 0.05])
+        # Streamlit input form centered cleanly
+        col_space1, col_form, col_space2 = st.columns([1, 8, 1])
         with col_form:
             password_input = st.text_input("", type="password", placeholder="••••••••")
             if st.button("Sign In →") or (
@@ -162,11 +184,10 @@ if DASHBOARD_PASSWORD:
                     st.error("Incorrect password.")
 
             st.markdown(
-                '<div style="margin-top:25px; text-align:center; font-size:0.75rem; color:#475569; line-height:1.4;">Securely isolated on private VM.<br>Managed via Cloudflare Zero Trust.</div>',
+                '<div style="margin-top:20px; text-align:center; font-size:0.75rem; color:#475569; line-height:1.4;">Securely isolated on private VM.<br>Managed via Cloudflare Zero Trust.</div>',
                 unsafe_allow_html=True,
             )
 
-        st.markdown('</div></div>', unsafe_allow_html=True)
         st.stop()
 
 # --- DATABASE LOAD ---
