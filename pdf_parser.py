@@ -48,6 +48,8 @@ def extract_pdf_transactions(file_bytes, password=None, filename=""):
     else:
         parsed_txs = parse_statement_text(text)
         
+    return parsed_txs, account_name
+
 def parse_bca_statement(text, statement_year=2026):
     """
     Dedicated block parser for BCA Tahapan Xpresi / BCA statement PDFs.
