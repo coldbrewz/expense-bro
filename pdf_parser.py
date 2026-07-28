@@ -13,10 +13,18 @@ def extract_pdf_transactions(file_bytes, password=None, filename=""):
     
     if reader.is_encrypted:
         if password:
-            try:
-                reader.decrypt(password)
-            except Exception as e:
-                raise ValueError(f"Failed to decrypt PDF. Check your PDF_PASSWORD in .env. Error: {e}")
+            # Support multiple comma-separated passwords in .env (e.g. "30Oct20022233,30102002,301002")
+            passwords_to_try = [p.strip() for p in password.split(",") if p.strip()]
+            decrypted = False
+            for pwd in passwords_to_try:
+                try:
+                    if reader.decrypt(pwd):
+                        decrypted = True
+                        break
+                except Exception:
+                    pass
+            if not decrypted:
+                raise ValueError(f"Failed to decrypt PDF. Check your PDF_PASSWORD in .env.")
         else:
             raise ValueError("PDF is password-protected. Please set PDF_PASSWORD in your .env file.")
             
