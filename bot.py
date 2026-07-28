@@ -568,20 +568,51 @@ def handle_set_income(message):
     if not is_allowed(message):
         return
     args = message.text.split(maxsplit=2)
+    current_cycle, _, _ = get_billing_cycle_info()
+    
     if len(args) < 2:
-        bot.reply_to(
-            message,
-            "💡 *Set Monthly Income*\nUsage: `/income 15m` or `/income 15000k` or `/income 15000000`",
-            parse_mode="Markdown"
-        )
+        inc_summary = db.get_income_summary(current_cycle)
+        total_amt = inc_summary["total_amount"]
+        entries = inc_summary["entries"]
+        
+        lines = [
+            f"💵 *INCOME LOG ({current_cycle})*",
+            f"• *Total Monthly Income:* `{format_rupiah(total_amt)}`\n"
+        ]
+        
+        if entries:
+            lines.append("📋 *Itemized Sources:*")
+            for e in entries:
+                lines.append(f"• `{format_rupiah(e['amount'])}` — *{e['source'].capitalize()}*")
+        else:
+            lines.append("ℹ️ *No income logged for this cycle yet.*")
+            
+        lines.append("\n💡 *To add income:* `/income 12m Salary` or `/income 5m Freelance`")
+        lines.append("💡 *To reset income:* `/income clear`")
+        bot.reply_to(message, "\n".join(lines), parse_mode="Markdown")
         return
+        
+    if args[1].lower() == "clear":
+        db.clear_income(current_cycle)
+        bot.reply_to(message, f"🗑️ *Cleared all income entries for cycle `{current_cycle}`.*", parse_mode="Markdown")
+        return
+        
     amt = parser.parse_amount_input(args[1])
     if not amt:
-        bot.reply_to(message, "❌ Please enter a valid income amount (e.g. 15m or 15000k).", parse_mode="Markdown")
+        bot.reply_to(message, "❌ Please enter a valid income amount (e.g. `/income 12m Salary` or `/income 5000k Bonus`).", parse_mode="Markdown")
         return
-    current_cycle, _, _ = get_billing_cycle_info()
-    db.set_income(current_cycle, amt)
-    bot.reply_to(message, f"💵 *Monthly Income Updated!*\nSet to `{format_rupiah(amt)}` for cycle `{current_cycle}`.", parse_mode="Markdown")
+        
+    source = args[2].strip().title() if len(args) >= 3 else "Income"
+    db.add_income_entry(current_cycle, amt, source)
+    
+    inc_summary = db.get_income_summary(current_cycle)
+    bot.reply_to(
+        message,
+        f"💵 *Income Logged!*\n"
+        f"• *Added:* `{format_rupiah(amt)}` (*{source}*)\n"
+        f"• *Total Monthly Income:* `{format_rupiah(inc_summary['total_amount'])}`",
+        parse_mode="Markdown"
+    )
 
 @bot.message_handler(commands=["saldo", "cashflow"])
 def handle_saldo(message):
@@ -597,12 +628,12 @@ def handle_saldo(message):
             return
             
     current_cycle, _, _ = get_billing_cycle_info()
-    inc = db.get_income(current_cycle)
+    inc_summary = db.get_income_summary(current_cycle)
     summary = db.get_total_budget_summary(current_cycle)
     balances = db.get_all_balances()
     
     total_spent = summary["total_realization"]
-    income_amt = inc["amount"]
+    income_amt = inc_summary["total_amount"]
     net_savings = income_amt - total_spent
     savings_pct = (net_savings / income_amt * 100) if income_amt > 0 else 0
     
@@ -622,7 +653,7 @@ def handle_saldo(message):
         lines.append(f"• *{acc_name.upper()}:* `{format_rupiah(b_info['balance'])}`")
         
     lines.append(f"\n💰 *Total Liquid Cash Saldo:* `{format_rupiah(total_liquid)}`")
-    lines.append("\n💡 *To update balance:* `/saldo bank_saqu 5m`\n💡 *To update income:* `/income 15m`")
+    lines.append("\n💡 *To add income:* `/income 12m Salary` or `/income 5m Freelance`\n💡 *To update balance:* `/saldo bank_saqu 5m`")
     
     bot.reply_to(message, "\n".join(lines), parse_mode="Markdown")
 

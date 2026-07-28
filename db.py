@@ -39,6 +39,15 @@ def init_db():
         )
     """)
     cursor.execute("""
+        CREATE TABLE IF NOT EXISTS income_entries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            billing_cycle TEXT NOT NULL,
+            amount INTEGER NOT NULL,
+            source TEXT NOT NULL DEFAULT 'Income',
+            timestamp TEXT NOT NULL
+        )
+    """)
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS balances (
             account TEXT PRIMARY KEY,
             balance INTEGER NOT NULL DEFAULT 0,
@@ -459,6 +468,62 @@ def get_income(billing_cycle):
     if row:
         return {"amount": row[0], "source": row[1]}
     return {"amount": 0, "source": "Salary"}
+
+def add_income_entry(billing_cycle, amount, source="Income"):
+    """
+    Adds a new itemized income entry (e.g. Salary, Freelance, Bonus, Dividends) for a billing cycle.
+    """
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    cursor.execute("""
+        INSERT INTO income_entries (billing_cycle, amount, source, timestamp)
+        VALUES (?, ?, ?, ?)
+    """, (billing_cycle, amount, source, now_str))
+    conn.commit()
+    conn.close()
+
+def get_income_summary(billing_cycle):
+    """
+    Returns total income sum and list of itemized income entries for a billing cycle.
+    Also falls back to old 'income' table if legacy data exists.
+    """
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT id, amount, source, timestamp FROM income_entries
+        WHERE billing_cycle = ?
+        ORDER BY id ASC
+    """, (billing_cycle,))
+    rows = cursor.fetchall()
+    
+    entries = []
+    total = 0
+    for r in rows:
+        entries.append({"id": r[0], "amount": r[1], "source": r[2], "timestamp": r[3]})
+        total += r[1]
+        
+    # Check legacy table if no entries found
+    if not entries:
+        cursor.execute("SELECT amount, source FROM income WHERE billing_cycle = ?", (billing_cycle,))
+        legacy = cursor.fetchone()
+        if legacy and legacy[0] > 0:
+            total = legacy[0]
+            entries.append({"id": 0, "amount": legacy[0], "source": legacy[1], "timestamp": ""})
+            
+    conn.close()
+    return {"total_amount": total, "entries": entries}
+
+def clear_income(billing_cycle):
+    """
+    Clears all income entries for a billing cycle.
+    """
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM income_entries WHERE billing_cycle = ?", (billing_cycle,))
+    cursor.execute("DELETE FROM income WHERE billing_cycle = ?", (billing_cycle,))
+    conn.commit()
+    conn.close()
 
 def set_balance(account, balance):
     conn = sqlite3.connect(DB_PATH)
