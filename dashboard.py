@@ -623,6 +623,26 @@ with b_col1:
             </div>
         """, unsafe_allow_html=True)
         
+    with st.expander("⚙️ Edit Monthly Budget Targets"):
+        current_budgets = db.get_budgets()
+        bg_col1, bg_col2 = st.columns(2)
+        new_targets = {}
+        cats = list(current_budgets.keys())
+        half = (len(cats) + 1) // 2
+        
+        with bg_col1:
+            for c in cats[:half]:
+                new_targets[c] = st.number_input(f"{cat_icons.get(c, '📦')} {c.capitalize()} (IDR)", value=int(current_budgets[c]), step=100000, key=f"bg_{c}")
+        with bg_col2:
+            for c in cats[half:]:
+                new_targets[c] = st.number_input(f"{cat_icons.get(c, '📦')} {c.capitalize()} (IDR)", value=int(current_budgets[c]), step=100000, key=f"bg_{c}")
+                
+        if st.button("💾 Save Budget Targets", type="primary", use_container_width=True):
+            for c, val in new_targets.items():
+                db.set_budget(c, val)
+            st.success("Target budgets updated successfully!")
+            st.rerun()
+
     st.markdown("</div>", unsafe_allow_html=True)
 
 with b_col2:

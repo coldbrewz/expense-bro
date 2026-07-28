@@ -553,7 +553,34 @@ def budget_status_command(message):
             
         lines.append(f"{badge} *{cat_name}:* `{spent_str}` / `{target_str}` ({pct}%)")
         
-    bot.reply_to(message, "\n".join(lines), parse_mode="Markdown")
+@bot.message_handler(commands=["setbudget"])
+def handle_set_budget(message):
+    if not is_allowed(message):
+        return
+    args = message.text.split(maxsplit=2)
+    if len(args) < 3:
+        bot.reply_to(
+            message,
+            "⚠️ *Usage:* `/setbudget <category> <amount>`\nE.g.: `/setbudget food 3000000` or `/setbudget transport 1500000`\nCategories: `food`, `groceries`, `transport`, `shopping`, `entertainment`, `bills`, `investment`, `family`, `misc`",
+            parse_mode="Markdown"
+        )
+        return
+        
+    category = args[1].strip().lower()
+    amount_str = args[2].strip()
+    digits = re.sub(r'\D', '', amount_str)
+    if not digits:
+        bot.reply_to(message, "❌ *Please enter a valid numeric amount.*", parse_mode="Markdown")
+        return
+        
+    amount = int(digits)
+    db.set_budget(category, amount)
+    
+    bot.reply_to(
+        message,
+        f"🎯 *Budget Target Updated!*\nMonthly target for *{category.capitalize()}* set to `{format_rupiah(amount)}`.",
+        parse_mode="Markdown"
+    )
 
 @bot.message_handler(commands=["export"])
 def export_data(message):
