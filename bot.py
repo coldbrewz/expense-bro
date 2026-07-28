@@ -879,11 +879,11 @@ def process_message(message):
         bot.reply_to(message, err_msg, parse_mode="Markdown")
         return
         
-    category = parser.categorize_merchant(merchant)
+    account = parser.detect_account(text) # Auto-detect account (BCA, Saqu, Line Bank, or default to Permata CC)
+    category = parser.categorize_merchant(merchant, account=account)
     if account != "permata_cc":
         category = "Non-CC"
     expense_category = parser.categorize_expense(merchant, text)
-    account = parser.detect_account(text) # Auto-detect account (BCA, Saqu, Line Bank, or default to Permata CC)
     cycle_label, start_date, end_date = get_billing_cycle_info()
     
     # Save to SQLite database and capture ID

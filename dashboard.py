@@ -1023,6 +1023,8 @@ if has_changes:
                 month = date_obj.month
                 day = date_obj.day
 
+                start_day = 21 if account == "permata_cc" else 1
+
                 if start_day > 1:
                     if day >= start_day:
                         month += 1
@@ -1032,6 +1034,8 @@ if has_changes:
                     cycle_label = f"{year}-{month:02d}"
                 else:
                     cycle_label = f"{year}-{month:02d}"
+                    
+                timestamp = f"{date_str} 00:00:00"
 
                 cursor.execute(
                     """
