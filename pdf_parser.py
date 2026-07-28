@@ -18,13 +18,14 @@ def extract_pdf_transactions(file_bytes, password=None, filename=""):
             decrypted = False
             for pwd in passwords_to_try:
                 try:
-                    if reader.decrypt(pwd):
+                    res = reader.decrypt(pwd)
+                    if res != 0 or not reader.is_encrypted:
                         decrypted = True
                         break
                 except Exception:
                     pass
             if not decrypted:
-                raise ValueError(f"Failed to decrypt PDF. Check your PDF_PASSWORD in .env.")
+                raise ValueError("Failed to decrypt PDF. Please verify your PDF_PASSWORD in your .env file.")
         else:
             raise ValueError("PDF is password-protected. Please set PDF_PASSWORD in your .env file.")
             
