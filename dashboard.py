@@ -715,7 +715,7 @@ with b_col2:
 
 # --- THREE BOTTOM WIDGETS ROW ---
 st.write("---")
-bottom_col1, bottom_col2, bottom_col3 = st.columns(3)
+bottom_col1, bottom_col2 = st.columns(2)
 
 with bottom_col1:
     # 📋 Recent Transactions List
@@ -765,51 +765,6 @@ with bottom_col1:
     st.markdown("\n".join(recent_html), unsafe_allow_html=True)
 
 with bottom_col2:
-    # 🎯 Budget Overview Progress Bars
-    budget_limits = {
-        "food": 2000000,
-        "groceries": 1500000,
-        "transport": 1000000,
-        "shopping": 2000000,
-        "bills": 1500000,
-        "entertainment": 1000000,
-        "investment": 3000000,
-        "family": 3000000,
-        "misc": 1000000,
-    }
-
-    budget_html = []
-    budget_html.append(
-        '<div class="dashboard-card" style="height: 480px; overflow-y: auto;">'
-    )
-    budget_html.append(
-        '<div class="card-header"><span>🎯 Budget Overview</span><span style="font-size:0.75rem; color:#8a9ca8;">Limits</span></div>'
-    )
-
-    # Calculate spends per category
-    cat_spends_dict = cycle_df.groupby("expense_category")["amount"].sum().to_dict()
-
-    for cat_name, limit in budget_limits.items():
-        spent = cat_spends_dict.get(cat_name, 0)
-        pct = min(1.0, spent / limit) if limit > 0 else 0
-        pct_display = int(pct * 100)
-        color = cat_colors.get(cat_name, "#3b82f6")
-
-        spent_str = format_rupiah(spent)
-        limit_str = format_rupiah(limit)
-        icon = cat_icons.get(cat_name, "📦")
-
-        budget_html.append(
-            f'<div class="progress-container">'
-            f'<div class="progress-label-row"><span>{icon} {cat_name.capitalize()}</span><span>{spent_str} / {limit_str} <span style="color:{color}; font-weight:700; margin-left:2px;">{pct_display}%</span></span></div>'
-            f'<div class="progress-bar-bg"><div class="progress-bar-fill" style="width:{pct_display}%; background:{color};"></div></div>'
-            f"</div>"
-        )
-
-    budget_html.append("</div>")
-    st.markdown("\n".join(budget_html), unsafe_allow_html=True)
-
-with bottom_col3:
     # ✨ AI Insights & Cloud Mesh Layout
     insights_html = []
     insights_html.append(
@@ -872,24 +827,35 @@ st.markdown("<hr style='border-color:#1c1e28;'>", unsafe_allow_html=True)
 st.markdown("### 📋 Transactions Manager")
 
 # Filters & Bulk Action Controls
-f_col1, f_col2, f_col3 = st.columns([2, 2, 2])
+with st.expander("🎛️ Advanced Table Filters", expanded=True):
+    f_col1, f_col2, f_col3 = st.columns(3)
+    
+    with f_col1:
+        account_options = ["All Accounts", "permata_cc", "line_bank", "bank_saqu", "bca", "general"]
+        selected_account_filter = st.selectbox("🏦 Filter by Account", account_options)
+        
+    with f_col2:
+        search_query = st.text_input("🔎 Search Merchant", placeholder="e.g. Grab, Shopee, Indomaret")
+        
+    with f_col3:
+        all_categories = ["All Categories"] + sorted(list(cycle_df["expense_category"].unique())) if not cycle_df.empty else ["All Categories"]
+        selected_cat_filter = st.selectbox("📦 Filter by Category", all_categories)
+        
+    f_col4, f_col5, f_col6 = st.columns(3)
+    
+    with f_col4:
+        min_amount = st.number_input("💵 Min Amount (Rp)", min_value=0, value=0, step=50000)
+    with f_col5:
+        max_amount = st.number_input("💵 Max Amount (Rp)", min_value=0, value=0, step=50000, help="Leave 0 for no maximum")
+    with f_col6:
+        st.markdown('<div style="height: 28px;"></div>', unsafe_allow_html=True)
+        if selected_account_filter != "All Accounts":
+            if st.button(f"🗑️ Clear ALL {selected_account_filter.upper()} Rows", type="secondary", use_container_width=True):
+                count = db.delete_transactions_by_account(selected_account_filter, billing_cycle=None)
+                st.success(f"Deleted {count} transactions for {selected_account_filter} across ALL cycles!")
+                st.rerun()
 
-with f_col1:
-    account_options = ["All Accounts", "permata_cc", "line_bank", "bank_saqu", "bca", "general"]
-    selected_account_filter = st.selectbox("🔍 Filter by Account", account_options)
-
-with f_col2:
-    search_query = st.text_input("🔎 Search Merchant", placeholder="e.g. Grab, Shopee, Indomaret")
-
-with f_col3:
-    st.markdown('<div style="height: 28px;"></div>', unsafe_allow_html=True)
-    if selected_account_filter != "All Accounts":
-        if st.button(f"🗑️ Clear ALL {selected_account_filter.upper()} Rows", type="secondary", use_container_width=True):
-            count = db.delete_transactions_by_account(selected_account_filter, billing_cycle=None)
-            st.success(f"Deleted {count} transactions for {selected_account_filter} across ALL cycles!")
-            st.rerun()
-
-st.caption("💡 *Double-click any cell to edit. Filter by account or search merchants above. Use the **+** button at the bottom of the table to add a new transaction.*")
+st.caption("💡 *Double-click any cell to edit. Open 'Advanced Table Filters' above to isolate transactions. Use the **+** button at the bottom of the table to add a new manual transaction.*")
 
 show_cols = [
     "id",
@@ -903,13 +869,25 @@ show_cols = [
 
 display_df = cycle_df[show_cols].copy()
 
-# Apply Account Filter if selected
+# Apply Account Filter
 if selected_account_filter != "All Accounts":
     display_df = display_df[display_df["account"] == selected_account_filter]
 
-# Apply Search Query if typed
+# Apply Search Query
 if search_query:
     display_df = display_df[display_df["merchant"].str.contains(search_query, case=False, na=False)]
+
+# Apply Category Filter
+if selected_cat_filter != "All Categories":
+    display_df = display_df[display_df["expense_category"] == selected_cat_filter]
+    
+# Apply Min Amount
+if min_amount > 0:
+    display_df = display_df[display_df["amount"] >= min_amount]
+    
+# Apply Max Amount
+if max_amount > 0:
+    display_df = display_df[display_df["amount"] <= max_amount]
 
 display_df["amount"] = display_df["amount"].astype(int)
 display_df["date"] = pd.to_datetime(display_df["date"]).dt.date
