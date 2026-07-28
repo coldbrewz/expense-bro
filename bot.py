@@ -911,25 +911,42 @@ def handle_photo(message):
             )
             return
             
-        # If it DID find transactions:
-        count = 0
-        cycle_label, start_date, end_date = get_billing_cycle_info()
+        inserted_count = 0
+        duplicate_count = 0
         for tx in parsed_txs:
             merch = tx.get("merchant", "OCR Transaction")
             amt = tx.get("amount", 0)
             
+            # Format timestamp as YYYY-MM-DD 00:00:00
+            tx_date_str = tx.get("date", datetime.now().strftime("%Y-%m-%d"))
+            timestamp = f"{tx_date_str} 00:00:00"
+            
+            # Calculate correct billing cycle based on the transaction date!
+            try:
+                tx_date_obj = datetime.strptime(tx_date_str, "%Y-%m-%d")
+                cycle_label, _, _ = get_billing_cycle_info(tx_date_obj)
+            except:
+                cycle_label, _, _ = get_billing_cycle_info()
+            
+            # Check for duplicates to prevent double-charging!
+            if db.check_duplicate(merch, amt, tx_date_str):
+                duplicate_count += 1
+                continue
+            
             acc_name = "spaylater" if is_spaylater else "permata_savings"
             
             category = parser.categorize_merchant(merch, account=acc_name)
+            if acc_name != "permata_cc":
+                category = "Non-CC"
             expense_category = parser.categorize_expense(merch, merch)
             
-            db.add_transaction(merch, amt, category, cycle_label, account=acc_name, expense_category=expense_category)
-            count += 1
+            db.add_transaction(merch, amt, category, cycle_label, timestamp=timestamp, account=acc_name, expense_category=expense_category)
+            inserted_count += 1
             
         bot.edit_message_text(
             chat_id=message.chat.id,
             message_id=status_msg.message_id,
-            text=f"✅ *Successfully extracted and imported {count} transactions from Screenshot via OCR!*",
+            text=f"✅ *Successfully extracted and imported {inserted_count} transactions from Screenshot via OCR!* (Skipped {duplicate_count} duplicates)",
             parse_mode="Markdown"
         )
         
