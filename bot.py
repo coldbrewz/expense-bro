@@ -5,6 +5,9 @@ import telebot
 from datetime import datetime, timedelta
 import db
 import parser
+import pytesseract
+from PIL import Image
+import io
 
 # Setup logging
 logging.basicConfig(
@@ -860,6 +863,70 @@ def handle_document(message):
             text=f"❌ *Failed to import E-statement:*\n`{e}`",
             parse_mode="Markdown"
         )
+
+@bot.message_handler(content_types=["photo"], func=lambda m: True)
+def handle_photo(message):
+    if not is_allowed(message):
+        return
+        
+    try:
+        status_msg = bot.reply_to(message, "🔍 *Analyzing screenshot with OCR AI...*", parse_mode="Markdown")
+        
+        # Download highest resolution photo
+        file_info = bot.get_file(message.photo[-1].file_id)
+        downloaded_file = bot.download_file(file_info.file_path)
+        
+        # Run OCR
+        img = Image.open(io.BytesIO(downloaded_file))
+        text = pytesseract.image_to_string(img, lang='ind+eng')
+        
+        if not text.strip():
+            bot.edit_message_text(
+                chat_id=message.chat.id,
+                message_id=status_msg.message_id,
+                text="❌ Could not read any text from this image.",
+                parse_mode="Markdown"
+            )
+            return
+            
+        import pdf_parser
+        # We can try to feed the OCR text into our robust fallback statement parser!
+        parsed_txs = pdf_parser.parse_statement_text(text)
+        
+        if not parsed_txs:
+            # If no structured tx found, just return the raw text to the user!
+            raw_preview = "\n".join(text.split("\n")[:25]) # first 25 lines
+            bot.edit_message_text(
+                chat_id=message.chat.id,
+                message_id=status_msg.message_id,
+                text=f"📸 *Image Processed! Here is the extracted text:*\n```text\n{raw_preview}\n```\n\n⚠️ *I couldn't auto-detect a standard bank statement format from this screenshot. You can manually log your SPayLater items using this data!*",
+                parse_mode="Markdown"
+            )
+            return
+            
+        # If it DID find transactions:
+        count = 0
+        cycle_label, start_date, end_date = get_billing_cycle_info()
+        for tx in parsed_txs:
+            merch = tx.get("merchant", "OCR Transaction")
+            amt = tx.get("amount", 0)
+            
+            category = parser.categorize_merchant(merch, account="permata_savings")
+            expense_category = parser.categorize_expense(merch, merch)
+            
+            db.add_transaction(merch, amt, category, cycle_label, account="permata_savings", expense_category=expense_category)
+            count += 1
+            
+        bot.edit_message_text(
+            chat_id=message.chat.id,
+            message_id=status_msg.message_id,
+            text=f"✅ *Successfully extracted and imported {count} transactions from Screenshot via OCR!*",
+            parse_mode="Markdown"
+        )
+        
+    except Exception as e:
+        logger.exception("OCR import failed: %s", e)
+        bot.reply_to(message, f"❌ *OCR Extraction failed:*\n`{e}`", parse_mode="Markdown")
 
 @bot.message_handler(content_types=["text"], func=lambda m: True)
 def process_message(message):
