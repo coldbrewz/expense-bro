@@ -1,12 +1,38 @@
 import re
 
+def parse_amount_input(text):
+    """
+    Parses any input string containing amounts or shorthand 'k'/'m' (e.g. '300k' -> 300000, '1000k' -> 1000000, '2.5m' -> 2500000).
+    Returns integer amount or None.
+    """
+    if not text:
+        return None
+    text_clean = str(text).strip()
+    
+    # 1. Handle million 'm' / 'M' shorthand (e.g. "3m" -> 3000000, "2.5m" -> 2500000)
+    m_match = re.search(r'(\d+(?:\.\d+)?)\s*m\b', text_clean, flags=re.IGNORECASE)
+    if m_match:
+        return int(float(m_match.group(1)) * 1000000)
+        
+    # 2. Handle thousand 'k' / 'K' shorthand (e.g. "300k" -> 300000, "1000k" -> 1000000, "2.5k" -> 2500)
+    k_match = re.search(r'(\d+(?:\.\d+)?)\s*k\b', text_clean, flags=re.IGNORECASE)
+    if k_match:
+        return int(float(k_match.group(1)) * 1000)
+        
+    # 3. Fallback to standard integer / currency parsing
+    digits = re.sub(r'\D', '', text_clean)
+    if digits:
+        return int(digits)
+    return None
+
 def parse_transaction(text):
     """
     Parses transaction amount and merchant name from raw SMS or shorthand text (e.g. 'gofood 45k').
     Returns (amount, merchant) where amount is an int (or None) and merchant is a string (or None).
     """
-    # 0. Convert shorthand '45k' or '45K' or '2.5k' into full numbers
-    text_norm = re.sub(r'(\d+(?:\.\d+)?)\s*k\b', lambda m: str(int(float(m.group(1)) * 1000)), text, flags=re.IGNORECASE)
+    # 0. Convert shorthand 'm' and 'k' into full numbers
+    text_norm = re.sub(r'(\d+(?:\.\d+)?)\s*m\b', lambda m: str(int(float(m.group(1)) * 1000000)), text, flags=re.IGNORECASE)
+    text_norm = re.sub(r'(\d+(?:\.\d+)?)\s*k\b', lambda m: str(int(float(m.group(1)) * 1000)), text_norm, flags=re.IGNORECASE)
     
     amount = None
     

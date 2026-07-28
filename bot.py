@@ -495,9 +495,9 @@ def recommend_card(message):
     merchant = args[1].strip()
     amount = 0
     if len(args) >= 3:
-        digits = re.sub(r'\D', '', args[2])
-        if digits:
-            amount = int(digits)
+        parsed_amt = parser.parse_amount_input(args[2])
+        if parsed_amt:
+            amount = parsed_amt
             
     current_cycle, _, _ = get_billing_cycle_info()
     stats = db.get_stats(current_cycle)
@@ -563,19 +563,19 @@ def handle_set_budget(message):
     if len(args) < 3:
         bot.reply_to(
             message,
-            "⚠️ *Usage:* `/setbudget <category> <amount>`\nE.g.: `/setbudget food 3000000` or `/setbudget transport 1500000`\nCategories: `food`, `groceries`, `transport`, `shopping`, `entertainment`, `bills`, `investment`, `family`, `misc`",
+            "⚠️ *Usage:* `/setbudget <category> <amount>`\nE.g.: `/setbudget food 300k` or `/setbudget food 3000k` or `/setbudget food 3m`\nCategories: `food`, `groceries`, `transport`, `shopping`, `entertainment`, `bills`, `investment`, `family`, `misc`",
             parse_mode="Markdown"
         )
         return
         
     category = args[1].strip().lower()
     amount_str = args[2].strip()
-    digits = re.sub(r'\D', '', amount_str)
-    if not digits:
-        bot.reply_to(message, "❌ *Please enter a valid numeric amount.*", parse_mode="Markdown")
+    parsed_amt = parser.parse_amount_input(amount_str)
+    if not parsed_amt:
+        bot.reply_to(message, "❌ *Please enter a valid amount (e.g. 300k, 1000k, 3m, or 3000000).*", parse_mode="Markdown")
         return
         
-    amount = int(digits)
+    amount = parsed_amt
     db.set_budget(category, amount)
     
     bot.reply_to(
