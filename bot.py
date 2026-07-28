@@ -537,8 +537,16 @@ def budget_status_command(message):
         return
     current_cycle, _, _ = get_billing_cycle_info()
     statuses = db.get_budget_status(current_cycle)
+    summary = db.get_total_budget_summary(current_cycle)
     
-    lines = [f"📊 *Budget Status ({current_cycle})*\n"]
+    lines = [
+        f"🎯 *TOTAL BUDGET SUMMARY ({current_cycle})*",
+        f"• *Target Budget:* `{format_rupiah(summary['total_budget_target'])}`",
+        f"• *Realization (Spent):* `{format_rupiah(summary['total_realization'])}` ({summary['pct_realized']}%)",
+        f"• *Remaining Budget:* `{format_rupiah(summary['remaining_budget'])}`\n",
+        f"📊 *Category Realization Breakdown:*"
+    ]
+    
     for s in statuses:
         cat_name = s["category"].capitalize()
         spent_str = format_rupiah(s["spent"])
@@ -553,6 +561,69 @@ def budget_status_command(message):
             
         lines.append(f"{badge} *{cat_name}:* `{spent_str}` / `{target_str}` ({pct}%)")
         
+    bot.reply_to(message, "\n".join(lines), parse_mode="Markdown")
+
+@bot.message_handler(commands=["income"])
+def handle_set_income(message):
+    if not is_allowed(message):
+        return
+    args = message.text.split(maxsplit=2)
+    if len(args) < 2:
+        bot.reply_to(
+            message,
+            "💡 *Set Monthly Income*\nUsage: `/income 15m` or `/income 15000k` or `/income 15000000`",
+            parse_mode="Markdown"
+        )
+        return
+    amt = parser.parse_amount_input(args[1])
+    if not amt:
+        bot.reply_to(message, "❌ Please enter a valid income amount (e.g. 15m or 15000k).", parse_mode="Markdown")
+        return
+    current_cycle, _, _ = get_billing_cycle_info()
+    db.set_income(current_cycle, amt)
+    bot.reply_to(message, f"💵 *Monthly Income Updated!*\nSet to `{format_rupiah(amt)}` for cycle `{current_cycle}`.", parse_mode="Markdown")
+
+@bot.message_handler(commands=["saldo", "cashflow"])
+def handle_saldo(message):
+    if not is_allowed(message):
+        return
+    args = message.text.split(maxsplit=2)
+    if len(args) >= 3:
+        acc = args[1].strip().lower()
+        amt = parser.parse_amount_input(args[2])
+        if amt is not None:
+            db.set_balance(acc, amt)
+            bot.reply_to(message, f"🏦 *Balance Updated!*\nAccount `{acc.upper()}` saldo set to `{format_rupiah(amt)}`.", parse_mode="Markdown")
+            return
+            
+    current_cycle, _, _ = get_billing_cycle_info()
+    inc = db.get_income(current_cycle)
+    summary = db.get_total_budget_summary(current_cycle)
+    balances = db.get_all_balances()
+    
+    total_spent = summary["total_realization"]
+    income_amt = inc["amount"]
+    net_savings = income_amt - total_spent
+    savings_pct = (net_savings / income_amt * 100) if income_amt > 0 else 0
+    
+    total_liquid = sum(b["balance"] for k, b in balances.items() if k != "permata_cc")
+    
+    lines = [
+        f"💵 *CASH FLOW & SALDO SUMMARY ({current_cycle})*",
+        f"• *Monthly Income:* `{format_rupiah(income_amt)}`",
+        f"• *Total Realization (Spent):* `{format_rupiah(total_spent)}`",
+        f"• *Net Monthly Savings:* `{format_rupiah(net_savings)}` ({savings_pct:.1f}% Savings Rate)\n",
+        f"🏦 *LIQUID BALANCES (SALDO):*"
+    ]
+    
+    for acc_name, b_info in balances.items():
+        if acc_name == "permata_cc":
+            continue
+        lines.append(f"• *{acc_name.upper()}:* `{format_rupiah(b_info['balance'])}`")
+        
+    lines.append(f"\n💰 *Total Liquid Cash Saldo:* `{format_rupiah(total_liquid)}`")
+    lines.append("\n💡 *To update balance:* `/saldo bank_saqu 5m`\n💡 *To update income:* `/income 15m`")
+    
     bot.reply_to(message, "\n".join(lines), parse_mode="Markdown")
 
 @bot.message_handler(commands=["setbudget"])

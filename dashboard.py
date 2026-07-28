@@ -593,6 +593,20 @@ with b_col1:
             </div>
     """, unsafe_allow_html=True)
     
+    summary_bg = db.get_total_budget_summary(selected_cycle)
+    st.markdown(f"""
+        <div style="background:rgba(59,130,246,0.08); border:1px solid rgba(59,130,246,0.2); border-radius:10px; padding:12px 16px; margin-bottom:16px; display:flex; justify-content:space-between; align-items:center;">
+            <div>
+                <div style="font-size:0.75rem; color:#94a3b8; font-weight:600; text-transform:uppercase;">TOTAL BUDGET REALIZATION</div>
+                <div style="font-size:1.2rem; font-weight:800; color:white;">{format_rupiah(summary_bg['total_realization'])} <span style="font-size:0.85rem; color:#94a3b8; font-weight:400;">/ {format_rupiah(summary_bg['total_budget_target'])}</span></div>
+            </div>
+            <div style="text-align:right;">
+                <div style="font-size:0.75rem; color:#94a3b8; font-weight:600;">REMAINING BUDGET</div>
+                <div style="font-size:1.1rem; font-weight:700; color:{'#10b981' if summary_bg['remaining_budget'] >= 0 else '#ef4444'};">{format_rupiah(summary_bg['remaining_budget'])}</div>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+    
     budget_statuses = db.get_budget_status(selected_cycle)
     for b in budget_statuses:
         cat_name = b["category"].capitalize()
@@ -669,18 +683,32 @@ with b_col2:
     else:
         st.success("🎉 **Recommendation:** Use **Bank Saqu** or **Line Bank**!\n\n5M CC cashback gate is ALREADY UNLOCKED! Save your CC limit and earn 5% interest yield.")
         
-    # Subscriptions Widget inside Column 2
+    # Income & Saldo Manager inside Column 2
     st.markdown("<hr style='border-color:rgba(255,255,255,0.08); margin:15px 0;'>", unsafe_allow_html=True)
-    st.markdown("<div style='font-size:0.85rem; font-weight:700; color:#e2e8f0; margin-bottom:8px;'>🔄 Subscriptions & Fixed Outflows</div>", unsafe_allow_html=True)
-    subs = db.get_recurring_subscriptions(selected_cycle)
-    if subs:
-        sub_total = sum(s["amount"] for s in subs)
-        st.markdown(f"<div style='font-size:0.8rem; color:#8a9ca8; margin-bottom:8px;'>Total Fixed Outflow: <b style='color:white;'>{format_rupiah(sub_total)}</b></div>", unsafe_allow_html=True)
-        for s in subs[:4]:
-            st.markdown(f"<div style='display:flex; justify-content:space-between; font-size:0.8rem; padding:4px 0; border-bottom:1px solid rgba(255,255,255,0.04);'><span>⚡ {s['merchant']}</span><b>{format_rupiah(s['amount'])}</b></div>", unsafe_allow_html=True)
-    else:
-        st.caption("No recurring subscriptions detected in this cycle.")
+    with st.expander("💵 Manage Income & Bank Saldo"):
+        inc_data = db.get_income(selected_cycle)
+        new_inc = st.number_input("Monthly Income (IDR)", value=int(inc_data["amount"]), step=500000, key="inc_val")
+        if st.button("💾 Save Income", use_container_width=True):
+            db.set_income(selected_cycle, new_inc)
+            st.success("Income updated!")
+            st.rerun()
+            
+        st.markdown("<hr style='border-color:rgba(255,255,255,0.08); margin:10px 0;'>", unsafe_allow_html=True)
+        st.caption("🏦 Liquid Account Balances (Saldo)")
+        curr_bal = db.get_all_balances()
+        b_saqu = st.number_input("Bank Saqu Saldo", value=int(curr_bal.get("bank_saqu", {}).get("balance", 0)), step=500000, key="bal_saqu")
+        b_line = st.number_input("Line Bank Saldo", value=int(curr_bal.get("line_bank", {}).get("balance", 0)), step=500000, key="bal_line")
+        b_bca = st.number_input("BCA Saldo", value=int(curr_bal.get("bca", {}).get("balance", 0)), step=500000, key="bal_bca")
+        b_general = st.number_input("Permata Savings Saldo", value=int(curr_bal.get("general", {}).get("balance", 0)), step=500000, key="bal_general")
         
+        if st.button("💾 Save All Saldo Balances", type="primary", use_container_width=True):
+            db.set_balance("bank_saqu", b_saqu)
+            db.set_balance("line_bank", b_line)
+            db.set_balance("bca", b_bca)
+            db.set_balance("general", b_general)
+            st.success("Bank balances updated!")
+            st.rerun()
+            
     st.markdown("</div>", unsafe_allow_html=True)
 
 # --- THREE BOTTOM WIDGETS ROW ---

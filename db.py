@@ -31,6 +31,20 @@ def init_db():
             target_amount INTEGER NOT NULL
         )
     """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS income (
+            billing_cycle TEXT PRIMARY KEY,
+            amount INTEGER NOT NULL,
+            source TEXT NOT NULL DEFAULT 'Salary'
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS balances (
+            account TEXT PRIMARY KEY,
+            balance INTEGER NOT NULL DEFAULT 0,
+            updated_at TEXT NOT NULL
+        )
+    """)
     
     # Pre-populate default budget targets if empty
     cursor.execute("SELECT COUNT(*) FROM budgets")
@@ -425,4 +439,71 @@ def edit_transaction(tx_id, field, value):
             "expense_category": row[7]
         }
     return None
+
+def set_income(billing_cycle, amount, source="Salary"):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT INTO income (billing_cycle, amount, source) VALUES (?, ?, ?)
+        ON CONFLICT(billing_cycle) DO UPDATE SET amount = excluded.amount, source = excluded.source
+    """, (billing_cycle, amount, source))
+    conn.commit()
+    conn.close()
+
+def get_income(billing_cycle):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT amount, source FROM income WHERE billing_cycle = ?", (billing_cycle,))
+    row = cursor.fetchone()
+    conn.close()
+    if row:
+        return {"amount": row[0], "source": row[1]}
+    return {"amount": 0, "source": "Salary"}
+
+def set_balance(account, balance):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    cursor.execute("""
+        INSERT INTO balances (account, balance, updated_at) VALUES (?, ?, ?)
+        ON CONFLICT(account) DO UPDATE SET balance = excluded.balance, updated_at = excluded.updated_at
+    """, (account.lower(), balance, now_str))
+    conn.commit()
+    conn.close()
+
+def get_all_balances():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT account, balance, updated_at FROM balances")
+    rows = cursor.fetchall()
+    conn.close()
+    
+    defaults = {"bank_saqu": 0, "line_bank": 0, "bca": 0, "general": 0, "permata_cc": 0}
+    res = {}
+    for r in rows:
+        res[r[0]] = {"balance": r[1], "updated_at": r[2]}
+    for k in defaults:
+        if k not in res:
+            res[k] = {"balance": 0, "updated_at": "Never"}
+    return res
+
+def get_total_budget_summary(billing_cycle):
+    budgets = get_budgets()
+    total_budget_target = sum(budgets.values())
+    
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT SUM(amount) FROM transactions WHERE billing_cycle = ?", (billing_cycle,))
+    total_realization = cursor.fetchone()[0] or 0
+    conn.close()
+    
+    remaining_budget = total_budget_target - total_realization
+    pct_realized = (total_realization / total_budget_target * 100) if total_budget_target > 0 else 0
+    
+    return {
+        "total_budget_target": total_budget_target,
+        "total_realization": total_realization,
+        "remaining_budget": remaining_budget,
+        "pct_realized": round(pct_realized, 1)
+    }
 
