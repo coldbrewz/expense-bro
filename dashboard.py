@@ -961,7 +961,14 @@ if has_changes:
             for row_idx, row_changes in edited.items():
                 tx_id = int(display_df.iloc[row_idx]["id"])
                 for field, new_value in row_changes.items():
-                    if field == "amount":
+                    if field == "date":
+                        # Map frontend 'date' back to backend 'timestamp'
+                        if hasattr(new_value, "strftime"):
+                            new_value = new_value.strftime("%Y-%m-%d 00:00:00")
+                        else:
+                            new_value = f"{new_value} 00:00:00"
+                        field = "timestamp"
+                    elif field == "amount":
                         new_value = int(new_value)
                     elif field == "expense_category":
                         new_value = new_value.lower()
