@@ -479,6 +479,82 @@ def undo_last(message):
     else:
         bot.reply_to(message, "❌ No transactions found to undo in database.", parse_mode="Markdown")
 
+@bot.message_handler(commands=["card"])
+def recommend_card(message):
+    if not is_allowed(message):
+        return
+    args = message.text.split(maxsplit=2)
+    if len(args) < 2:
+        bot.reply_to(
+            message,
+            "💡 *Smart Card Recommender*\nUsage: `/card Shopee 150000` or `/card SPBU 300000` or `/card Grab 50000`",
+            parse_mode="Markdown"
+        )
+        return
+        
+    merchant = args[1].strip()
+    amount = 0
+    if len(args) >= 3:
+        digits = re.sub(r'\D', '', args[2])
+        if digits:
+            amount = int(digits)
+            
+    current_cycle, _, _ = get_billing_cycle_info()
+    stats = db.get_stats(current_cycle)
+    
+    total_cc_spend = stats["cc_online"] + stats["cc_offline"] + stats["cc_unmapped"]
+    activation_gate = 5000000
+    needed = activation_gate - total_cc_spend
+    
+    cc_category = parser.categorize_merchant(merchant, account="permata_cc")
+    expense_cat = parser.categorize_expense(merchant)
+    
+    if total_cc_spend < activation_gate:
+        rec_title = "💳 RECOMMENDED CARD: Permata Credit Card"
+        rec_reason = (
+            f"Your Permata CC is at *{format_rupiah(total_cc_spend)}* / *5.0M IDR*.\n"
+            f"You need *{format_rupiah(needed)}* more to unlock your 10% cashback gate!\n"
+            f"This transaction matches *{cc_category}* category ({expense_cat.capitalize()})."
+        )
+    else:
+        rec_title = "🏦 RECOMMENDED ACCOUNT: Bank Saqu or Line Bank"
+        rec_reason = (
+            f"🎉 Your Permata CC 5M Cashback Gate is ALREADY UNLOCKED (*{format_rupiah(total_cc_spend)}* spent)!\n"
+            f"Save your credit card limit and pay via **Bank Saqu** or **Line Bank** to keep your funds earning 5% interest yield."
+        )
+        
+    reply = (
+        f"🎯 *{rec_title}*\n\n"
+        f"• *Item/Merchant:* `{merchant}`\n"
+        f"{f'• *Amount:* `{format_rupiah(amount)}`' if amount > 0 else ''}\n\n"
+        f"{rec_reason}"
+    )
+    bot.reply_to(message, reply, parse_mode="Markdown")
+
+@bot.message_handler(commands=["budget"])
+def budget_status_command(message):
+    if not is_allowed(message):
+        return
+    current_cycle, _, _ = get_billing_cycle_info()
+    statuses = db.get_budget_status(current_cycle)
+    
+    lines = [f"📊 *Budget Status ({current_cycle})*\n"]
+    for s in statuses:
+        cat_name = s["category"].capitalize()
+        spent_str = format_rupiah(s["spent"])
+        target_str = format_rupiah(s["target"])
+        pct = s["pct"]
+        
+        badge = "🟢"
+        if s["warning"] == "OVER":
+            badge = "🔴 OVER BUDGET!"
+        elif s["warning"] == "WARN":
+            badge = "🟡 NEAR LIMIT"
+            
+        lines.append(f"{badge} *{cat_name}:* `{spent_str}` / `{target_str}` ({pct}%)")
+        
+    bot.reply_to(message, "\n".join(lines), parse_mode="Markdown")
+
 @bot.message_handler(commands=["export"])
 def export_data(message):
     if not is_allowed(message):

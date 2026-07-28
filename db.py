@@ -24,7 +24,29 @@ def init_db():
             account TEXT NOT NULL DEFAULT 'permata_cc',
             expense_category TEXT NOT NULL DEFAULT 'misc'
         )
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS budgets (
+            category TEXT PRIMARY KEY,
+            target_amount INTEGER NOT NULL
+        )
     """)
+    
+    # Pre-populate default budget targets if empty
+    cursor.execute("SELECT COUNT(*) FROM budgets")
+    if cursor.fetchone()[0] == 0:
+        default_budgets = [
+            ("food", 2500000),
+            ("groceries", 1500000),
+            ("transport", 1000000),
+            ("shopping", 1500000),
+            ("entertainment", 500000),
+            ("bills", 1500000),
+            ("investment", 2000000),
+            ("family", 1000000),
+            ("misc", 500000)
+        ]
+        cursor.executemany("INSERT INTO budgets (category, target_amount) VALUES (?, ?)", default_budgets)
+
     # Migration: check if 'account' or 'expense_category' columns exist
     cursor.execute("PRAGMA table_info(transactions)")
     columns = [col[1] for col in cursor.fetchall()]
@@ -231,6 +253,94 @@ def export_transactions_to_csv():
     csv_data = output.getvalue().encode('utf-8')
     output.close()
     return csv_data
+
+def get_budgets():
+    """
+    Returns a dictionary of category -> target_amount.
+    """
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT category, target_amount FROM budgets")
+    rows = cursor.fetchall()
+    conn.close()
+    return {row[0]: row[1] for row in rows}
+
+def set_budget(category, target_amount):
+    """
+    Sets or updates the target budget for a given expense category.
+    """
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT INTO budgets (category, target_amount) VALUES (?, ?)
+        ON CONFLICT(category) DO UPDATE SET target_amount = excluded.target_amount
+    """, (category.lower(), target_amount))
+    conn.commit()
+    conn.close()
+
+def get_budget_status(billing_cycle):
+    """
+    Computes budget status (spent vs target, % used, and warning status) for all categories.
+    """
+    budgets = get_budgets()
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT expense_category, SUM(amount) FROM transactions
+        WHERE billing_cycle = ?
+        GROUP BY expense_category
+    """, (billing_cycle,))
+    spent_dict = {row[0]: row[1] for row in cursor.fetchall()}
+    conn.close()
+    
+    status_list = []
+    for cat, target in budgets.items():
+        spent = spent_dict.get(cat, 0)
+        pct = (spent / target * 100) if target > 0 else 0
+        warning = None
+        if pct >= 100:
+            warning = "OVER"
+        elif pct >= 80:
+            warning = "WARN"
+        status_list.append({
+            "category": cat,
+            "spent": spent,
+            "target": target,
+            "pct": round(pct, 1),
+            "warning": warning
+        })
+    return status_list
+
+def get_recurring_subscriptions(billing_cycle):
+    """
+    Scans transactions for recurring payments, subscriptions, and installments (e.g. SPayLater, Game Pass, Telkomsel, etc.).
+    """
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT id, timestamp, merchant, amount, account, expense_category FROM transactions
+        WHERE billing_cycle = ? AND (
+            merchant LIKE '%SPAYLATER%' OR merchant LIKE '%GAME PASS%' OR 
+            merchant LIKE '%NETFLIX%' OR merchant LIKE '%SPOTIFY%' OR 
+            merchant LIKE '%TELKOMSEL%' OR merchant LIKE '%INDIHOME%' OR 
+            merchant LIKE '%KOST%' OR merchant LIKE '%BPJS%' OR merchant LIKE '%HALODOC%'
+        )
+        ORDER BY amount DESC
+    """, (billing_cycle,))
+    rows = cursor.fetchall()
+    conn.close()
+    
+    subscriptions = []
+    for row in rows:
+        subscriptions.append({
+            "id": row[0],
+            "date": row[1][:10],
+            "merchant": row[2],
+            "amount": row[3],
+            "account": row[4],
+            "category": row[5]
+        })
+    return subscriptions
 
 def check_duplicate(merchant, amount, date_str):
     """
