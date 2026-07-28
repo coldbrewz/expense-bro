@@ -2,29 +2,27 @@ import re
 
 def parse_transaction(text):
     """
-    Parses transaction amount and merchant name from raw SMS/notification text.
+    Parses transaction amount and merchant name from raw SMS or shorthand text (e.g. 'gofood 45k').
     Returns (amount, merchant) where amount is an int (or None) and merchant is a string (or None).
     """
+    # 0. Convert shorthand '45k' or '45K' or '2.5k' into full numbers
+    text_norm = re.sub(r'(\d+(?:\.\d+)?)\s*k\b', lambda m: str(int(float(m.group(1)) * 1000)), text, flags=re.IGNORECASE)
+    
     amount = None
     
     # 1. Find amount
-    # Search for common Indonesian currency indicators (e.g. Rp 150.000,00, Rp. 100.000, IDR 50,000)
-    amt_match = re.search(r'(?i)(?:Rp\.?|IDR\.?)\s*([\d.,]+)', text)
+    amt_match = re.search(r'(?i)(?:Rp\.?|IDR\.?)\s*([\d.,]+)', text_norm)
     if amt_match:
         amt_str = amt_match.group(1)
-        # remove cents if they end with .00 or ,00
         if re.search(r'[.,]00$', amt_str):
             amt_str = amt_str[:-3]
-        # remove all non-digits to get integer amount
         digits = re.sub(r'\D', '', amt_str)
         if digits:
             amount = int(digits)
     else:
         # Fallback: look for general thousands-separated numbers or plain 4-9 digit numbers
-        # E.g. 150.000 or 1.500.000 or 50000
-        matches = re.findall(r'\b\d{1,3}(?:[.,]\d{3})+\b|\b\d{4,9}\b', text)
+        matches = re.findall(r'\b\d{1,3}(?:[.,]\d{3})+\b|\b\d{4,9}\b', text_norm)
         if matches:
-            # take the first match that is likely an amount
             amt_str = matches[0]
             digits = re.sub(r'\D', '', amt_str)
             if digits:
@@ -33,23 +31,26 @@ def parse_transaction(text):
     # 2. Find merchant name
     merchant = None
     
-    # Search for typical location/action keywords: di, at, merchant, ke, store
-    # Support consecutive prefix keywords (e.g., "di merchant", "at store")
-    merchant_match = re.search(r'(?i)\b(?:di|at|merchant|ke|store)(?:\s+(?:di|at|merchant|ke|store))*\s+([a-z0-9\s\-&\'’]+)', text)
+    merchant_match = re.search(r'(?i)\b(?:di|at|merchant|ke|store)(?:\s+(?:di|at|merchant|ke|store))*\s+([a-z0-9\s\-&\'’]+)', text_norm)
     if merchant_match:
         raw_merchant = merchant_match.group(1).strip()
-        # Split and discard when we hit Indonesian/English billing SMS suffix keywords
         stop_words = r'\b(pada|tanggal|pd|pukul|sukses|berhasil|dengan|kartu|via|menggunakan|no|ref|id|dr|dtg|date|time|card|ending)\b'
         parts = re.split(stop_words, raw_merchant, flags=re.IGNORECASE)
         merchant = parts[0].strip()
-        # Clean trailing and leading punctuation/spaces
         merchant = re.sub(r'[\s.,\-#]+$', '', merchant)
         merchant = re.sub(r'^[\s.,\-#]+', '', merchant)
         
-    # If merchant wasn't found or is too generic, run a fallback to search for known keywords in the entire text
     if not merchant or len(merchant) < 2:
-        merchant = extract_merchant_fallback(text)
-        
+        merchant = extract_merchant_fallback(text_norm)
+
+    # 3. Shorthand Fallback (e.g. "gofood 45000" or "45000 gofood")
+    if not merchant and amount:
+        rem = re.sub(r'\b' + str(amount) + r'\b', '', text_norm, flags=re.IGNORECASE)
+        rem = re.sub(r'\b(rp|idr)\b', '', rem, flags=re.IGNORECASE)
+        rem = re.sub(r'[^\w\s]', '', rem).strip()
+        if rem and len(rem) >= 2:
+            merchant = rem.title()
+            
     return amount, merchant
 
 def extract_merchant_fallback(text):
