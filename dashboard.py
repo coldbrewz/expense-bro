@@ -894,6 +894,26 @@ display_df["amount"] = display_df["amount"].astype(int)
 display_df["date"] = pd.to_datetime(display_df["date"]).dt.date
 display_df = display_df.sort_values(by="id", ascending=False)
 
+st.divider()
+total_sum = display_df["amount"].sum()
+st.markdown(f"### 🧮 Filtered Total: `Rp {total_sum:,.0f}`")
+
+if not display_df.empty:
+    acc_sums = display_df.groupby("account")["amount"].sum()
+    if len(acc_sums) > 0:
+        acc_cols = st.columns(len(acc_sums))
+        for idx, (acc_name, acc_total) in enumerate(acc_sums.items()):
+            clean_acc_name = acc_name.replace("_", " ").title()
+            if acc_name == "permata_cc": clean_acc_name = "💳 CC"
+            if acc_name == "permata_savings": clean_acc_name = "💰 Permata"
+            if acc_name == "spaylater": clean_acc_name = "🛍️ SPayLater"
+            if acc_name == "bank_saqu": clean_acc_name = "🐷 Saqu"
+            if acc_name == "bca": clean_acc_name = "🏦 BCA"
+            if acc_name == "line_bank": clean_acc_name = "📱 Line"
+            
+            acc_cols[idx].metric(label=clean_acc_name, value=f"Rp {acc_total:,.0f}")
+st.write("") # some spacing
+
 if "editor_key" not in st.session_state:
     st.session_state.editor_key = 0
 
