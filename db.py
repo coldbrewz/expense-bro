@@ -536,6 +536,25 @@ def set_balance(account, balance):
     conn.commit()
     conn.close()
 
+def execute_internal_transfer(from_account, to_account, amount):
+    """
+    Transfers liquid balance from one bank account to another without creating an expense.
+    """
+    balances = get_all_balances()
+    from_acc = from_account.lower()
+    to_acc = to_account.lower()
+    
+    from_bal = balances.get(from_acc, {}).get("balance", 0)
+    to_bal = balances.get(to_acc, {}).get("balance", 0)
+    
+    new_from_bal = max(0, from_bal - amount)
+    new_to_bal = to_bal + amount
+    
+    set_balance(from_acc, new_from_bal)
+    set_balance(to_acc, new_to_bal)
+    
+    return new_from_bal, new_to_bal
+
 def get_all_balances():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()

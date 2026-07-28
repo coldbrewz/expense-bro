@@ -614,6 +614,40 @@ def handle_set_income(message):
         parse_mode="Markdown"
     )
 
+@bot.message_handler(commands=["transfer", "trf"])
+def handle_transfer(message):
+    if not is_allowed(message):
+        return
+    args = message.text.split()
+    if len(args) < 4:
+        bot.reply_to(
+            message,
+            "💡 *Internal Transfer (0 Expense Created)*\nUsage: `/transfer <amount> <from_account> <to_account>`\nE.g.: `/transfer 5m bank_saqu line_bank` or `/transfer 2.5m bank_saqu bca`",
+            parse_mode="Markdown"
+        )
+        return
+        
+    amt = parser.parse_amount_input(args[1])
+    if not amt:
+        bot.reply_to(message, "❌ Invalid amount. E.g. `/transfer 5m bank_saqu line_bank`", parse_mode="Markdown")
+        return
+        
+    from_acc = args[2].strip().lower()
+    to_acc = args[3].strip().lower()
+    
+    new_from, new_to = db.execute_internal_transfer(from_acc, to_acc, amt)
+    
+    bot.reply_to(
+        message,
+        f"🔄 *Internal Transfer Executed!*\n"
+        f"• *Transferred:* `{format_rupiah(amt)}` from `{from_acc.upper()}` ➔ `{to_acc.upper()}`\n\n"
+        f"🏦 *Updated Balances:*\n"
+        f"• `{from_acc.upper()}`: `{format_rupiah(new_from)}`\n"
+        f"• `{to_acc.upper()}`: `{format_rupiah(new_to)}`\n\n"
+        f"✨ *0 expense recorded* — your net savings calculation stays 100% accurate!",
+        parse_mode="Markdown"
+    )
+
 @bot.message_handler(commands=["saldo", "cashflow"])
 def handle_saldo(message):
     if not is_allowed(message):
