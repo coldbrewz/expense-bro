@@ -122,6 +122,83 @@ def detect_bank_from_text(text, filename=""):
             
     return "permata_savings"
 
+def parse_spaylater_ocr(text):
+    """
+    Parses Tesseract OCR text specifically looking for the SPayLater pattern:
+    Offline Payment - BUCK UP BURGER-HO
+    20 Jun 2026
+    + Rp65.000 >
+    """
+    transactions = []
+    lines = text.split("\n")
+    cleaned_lines = [l.strip() for l in lines if l.strip()]
+    
+    months_map = {
+        'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'mei': 5, 'may': 5, 'jun': 6, 'june': 6,
+        'jul': 7, 'july': 7, 'agu': 8, 'aug': 8, 'sep': 9, 'okt': 10, 'oct': 10, 'nov': 11, 'des': 12, 'dec': 12
+    }
+    
+    for i, line in enumerate(cleaned_lines):
+        # Anchor on the amount line e.g., "+ Rp65.000 >", "Rp65.000", or "* Rp 65.000"
+        amt_match = re.search(r'(?:\+|-|\*)?\s*Rp\.?\s*([\d\.,]+)', line, re.IGNORECASE)
+        if amt_match:
+            amount_str = amt_match.group(1)
+            digits = re.sub(r'\D', '', amount_str)
+            if not digits:
+                continue
+            amount = int(digits)
+            if amount == 0:
+                continue
+            
+            tx_date = None
+            merchant = "SPayLater Transaction"
+            
+            # Check if date is on the SAME line
+            date_match = re.search(r'(\d{1,2})\s*([A-Za-z]{3,})(?:\s+(\d{4}))?', line)
+            if date_match:
+                d_str, m_str, y_str = date_match.groups()
+                m_num = months_map.get(m_str.lower()[:3], 6)
+                y_num = int(y_str) if y_str else 2026
+                tx_date = f"{y_num}-{m_num:02d}-{int(d_str):02d}"
+                
+                merch_part = line[:date_match.start()].strip()
+                merch_part = re.sub(r'(?i)^Offline Payment - ', '', merch_part)
+                if merch_part:
+                    merchant = merch_part
+            else:
+                # Look up to 3 lines backward for a Date
+                for j in range(1, 4):
+                    if i - j < 0:
+                        break
+                    prev_line = cleaned_lines[i-j]
+                    
+                    date_match = re.search(r'(\d{1,2})\s*([A-Za-z]{3,})(?:\s+(\d{4}))?', prev_line)
+                    if date_match:
+                        d_str, m_str, y_str = date_match.groups()
+                        m_num = months_map.get(m_str.lower()[:3], 6)
+                        y_num = int(y_str) if y_str else 2026
+                        tx_date = f"{y_num}-{m_num:02d}-{int(d_str):02d}"
+                        
+                        # The line before the date is the merchant
+                        if i - j - 1 >= 0:
+                            merch_line = cleaned_lines[i-j-1]
+                            merch_line = re.sub(r'(?i)^Offline Payment - ', '', merch_line)
+                            merch_line = re.sub(r'\[\d+/\d+\]$', '', merch_line).strip()
+                            if merch_line and not re.search(r'\+\s*Rp', merch_line):
+                                merchant = merch_line
+                        break
+                        
+            if not tx_date:
+                tx_date = "2026-06-01"
+                
+            transactions.append({
+                "date": tx_date,
+                "merchant": merchant,
+                "amount": amount
+            })
+            
+    return transactions
+
 def parse_linebank_statement(text, statement_year=2026):
     """
     Dedicated multi-line block parser for Line Bank / Hana Bank e-statements.

@@ -890,8 +890,11 @@ def handle_photo(message):
             return
             
         import pdf_parser
-        # We can try to feed the OCR text into our robust fallback statement parser!
-        parsed_txs = pdf_parser.parse_statement_text(text)
+        # First try the dedicated SPayLater format!
+        parsed_txs = pdf_parser.parse_spaylater_ocr(text)
+        if not parsed_txs:
+            # Fallback to standard generic bank statement
+            parsed_txs = pdf_parser.parse_statement_text(text)
         
         if not parsed_txs:
             # If no structured tx found, just return the raw text to the user!
