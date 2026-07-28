@@ -960,6 +960,43 @@ if has_changes:
             # 1. Process edited rows
             for row_idx, row_changes in edited.items():
                 tx_id = int(display_df.iloc[row_idx]["id"])
+                
+                # Check if we need to recalculate the billing cycle
+                needs_cycle_recalc = False
+                final_account = display_df.iloc[row_idx]["account"]
+                final_date_val = display_df.iloc[row_idx]["date"]
+                
+                # Convert original date to object
+                if hasattr(final_date_val, "strftime"):
+                    final_date_obj = final_date_val
+                else:
+                    final_date_obj = datetime.strptime(str(final_date_val), "%Y-%m-%d")
+                
+                if "account" in row_changes:
+                    final_account = row_changes["account"]
+                    needs_cycle_recalc = True
+                    
+                if "date" in row_changes:
+                    raw_d = row_changes["date"]
+                    if hasattr(raw_d, "strftime"):
+                        final_date_obj = raw_d
+                    else:
+                        final_date_obj = datetime.strptime(str(raw_d), "%Y-%m-%d")
+                    needs_cycle_recalc = True
+                    
+                if needs_cycle_recalc:
+                    year = final_date_obj.year
+                    month = final_date_obj.month
+                    day = final_date_obj.day
+                    start_day = 21 if final_account == "permata_cc" else 1
+                    if start_day > 1 and day >= start_day:
+                        month += 1
+                        if month > 12:
+                            month = 1
+                            year += 1
+                    new_cycle = f"{year}-{month:02d}"
+                    cursor.execute("UPDATE transactions SET billing_cycle = ? WHERE id = ?", (new_cycle, tx_id))
+
                 for field, new_value in row_changes.items():
                     if field == "date":
                         # Map frontend 'date' back to backend 'timestamp'
