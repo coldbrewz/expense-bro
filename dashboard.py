@@ -742,6 +742,7 @@ with bottom_col1:
                 "bca": "🏦 BCA",
                 "line_bank": "📱 Line",
                 "permata_savings": "💰 Permata Savings",
+                "spaylater": "🛍️ SPayLater"
             }
             acc_badge = acc_labels.get(row["account"], row["account"].upper())
 
@@ -831,7 +832,7 @@ with st.expander("🎛️ Advanced Table Filters", expanded=True):
     f_col1, f_col2, f_col3 = st.columns(3)
     
     with f_col1:
-        account_options = ["All Accounts", "permata_cc", "line_bank", "bank_saqu", "bca", "permata_savings"]
+        account_options = ["All Accounts", "permata_cc", "line_bank", "bank_saqu", "bca", "permata_savings", "spaylater"]
         selected_account_filter = st.selectbox("🏦 Filter by Account", account_options)
         
     with f_col2:
@@ -912,7 +913,7 @@ edited_df = st.data_editor(
         ),
         "account": st.column_config.SelectboxColumn(
             "Account",
-            options=["permata_cc", "bank_saqu", "bca", "line_bank", "permata_savings"],
+            options=["permata_cc", "bank_saqu", "bca", "line_bank", "permata_savings", "spaylater"],
             required=True,
         ),
         "expense_category": st.column_config.SelectboxColumn(

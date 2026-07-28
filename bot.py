@@ -890,9 +890,13 @@ def handle_photo(message):
             return
             
         import pdf_parser
+        is_spaylater = False
+        
         # First try the dedicated SPayLater format!
         parsed_txs = pdf_parser.parse_spaylater_ocr(text)
-        if not parsed_txs:
+        if parsed_txs:
+            is_spaylater = True
+        else:
             # Fallback to standard generic bank statement
             parsed_txs = pdf_parser.parse_statement_text(text)
         
@@ -914,10 +918,12 @@ def handle_photo(message):
             merch = tx.get("merchant", "OCR Transaction")
             amt = tx.get("amount", 0)
             
-            category = parser.categorize_merchant(merch, account="permata_savings")
+            acc_name = "spaylater" if is_spaylater else "permata_savings"
+            
+            category = parser.categorize_merchant(merch, account=acc_name)
             expense_category = parser.categorize_expense(merch, merch)
             
-            db.add_transaction(merch, amt, category, cycle_label, account="permata_savings", expense_category=expense_category)
+            db.add_transaction(merch, amt, category, cycle_label, account=acc_name, expense_category=expense_category)
             count += 1
             
         bot.edit_message_text(
