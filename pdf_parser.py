@@ -40,11 +40,14 @@ def extract_pdf_transactions(file_bytes, password=None, filename=""):
 
     if account_name == "bca":
         parsed_txs = parse_bca_statement(text, statement_year)
+    elif account_name == "general":
+        if "rekening koran" in text.lower() or "permatapayroll" in text.lower():
+            parsed_txs = parse_permata_noncc_statement(text, statement_year)
+        else:
+            parsed_txs = parse_statement_text(text)
     else:
         parsed_txs = parse_statement_text(text)
         
-    return parsed_txs, account_name
-
 def parse_bca_statement(text, statement_year=2026):
     """
     Dedicated block parser for BCA Tahapan Xpresi / BCA statement PDFs.
@@ -133,6 +136,71 @@ def parse_bca_statement(text, statement_year=2026):
         
     return transactions
 
+def parse_permata_noncc_statement(text, statement_year=2026):
+    """
+    Dedicated parser for Permata Savings / Rekening Koran statements.
+    Processes lines with 2 dates (Trx. Date & Valuta Date: DD/MM DD/MM), description, and Debet/Saldo columns.
+    """
+    transactions = []
+    lines = text.split("\n")
+    
+    permata_row_regex = re.compile(
+        r'^\s*(\d{2})/(\d{2})\s+(\d{2})/(\d{2})\s+(.*?)\s+([\d\.,]{3,15})\s+([\d\.,]{3,15})\s*$',
+        re.IGNORECASE
+    )
+
+    for line in lines:
+        line_clean = line.strip()
+        if not line_clean:
+            continue
+            
+        match = permata_row_regex.match(line_clean)
+        if not match:
+            continue
+            
+        d_str, m_str = match.group(1), match.group(2)
+        merchant_part = match.group(5).strip()
+        debit_raw = match.group(6)
+        
+        day_num, m_num = int(d_str), int(m_str)
+        if not (1 <= day_num <= 31 and 1 <= m_num <= 12):
+            continue
+            
+        merchant_upper = merchant_part.upper()
+        
+        # Filter out incoming transfers or interest income
+        if any(kw in merchant_upper for kw in ['TRF INCOMING', 'INCOMING', 'PENDAPATAN BUNGA', 'BUNGA', 'SALDO AWAL']):
+            continue
+            
+        clean_amt_str = debit_raw
+        if re.search(r'[\.,]00$', clean_amt_str):
+            clean_amt_str = clean_amt_str[:-3]
+            
+        digits = re.sub(r'\D', '', clean_amt_str)
+        if not digits:
+            continue
+            
+        amount = int(digits)
+        if amount == 0:
+            continue
+            
+        clean_merchant = merchant_part
+        clean_merchant = re.sub(r'\b\d{2}:\d{2}:\d{2}\b', '', clean_merchant)
+        clean_merchant = re.sub(r'\b\d{10,20}\b', '', clean_merchant)
+        clean_merchant = re.sub(r'\s+', ' ', clean_merchant).strip()
+        
+        if not clean_merchant or len(clean_merchant) < 2:
+            clean_merchant = "Permata Transaction"
+            
+        tx_date = f"{statement_year}-{m_num:02d}-{day_num:02d}"
+        transactions.append({
+            "date": tx_date,
+            "merchant": clean_merchant,
+            "amount": amount
+        })
+        
+    return transactions
+
 def detect_bank_from_text(text, filename=""):
     """
     Scans PDF text and filename to determine which bank account it belongs to.
@@ -140,24 +208,30 @@ def detect_bank_from_text(text, filename=""):
     """
     text_lower = text.lower()
     filename_lower = filename.lower()
+    header_text = text[:1000].lower()
     
-    # Check Bank Saqu
-    if "saqu" in text_lower or "saqu" in filename_lower or "jasa jakarta" in text_lower or "saku gajian" in text_lower:
-        return "bank_saqu"
-    # Check Line Bank
-    elif "line bank" in text_lower or "linebank" in text_lower or "line" in filename_lower or "hana bank" in text_lower or "consolidate statement" in text_lower:
-        return "line_bank"
-    # Check BCA
-    elif "bca" in text_lower or "bca" in filename_lower or "central asia" in text_lower or "tahapan xpresi" in text_lower:
-        return "bca"
-    # Check Permata CC vs Permata Savings (Non-CC)
-    elif "permata" in text_lower or "permata" in filename_lower:
-        if any(keyword in text_lower for keyword in ["rekening koran", "permatapayroll", "tabungan", "no. rekening"]):
-            return "general"
-        elif any(keyword in text_lower for keyword in ["credit card", "tagihan", "nomor kartu", "shopping card", "detil transaksi"]):
+    # 1. Permata Bank statements (Check Permata first to avoid body transfer descriptions matching other banks)
+    if "permata" in text_lower or "permata" in filename_lower:
+        if any(kw in header_text for kw in ["rekening koran", "permatapayroll", "tabungan", "account statement"]):
+            if "credit card" in header_text or "rekening tagihan" in header_text or "shopping card" in header_text:
+                return "permata_cc"
+            return "general" # Permata Savings / Non-CC
+        elif any(kw in header_text for kw in ["credit card", "rekening tagihan", "nomor kartu", "shopping card", "detil transaksi"]):
             return "permata_cc"
         else:
             return "permata_cc"
+            
+    # 2. Bank Saqu
+    if "saqu" in text_lower or "saqu" in filename_lower or "jasa jakarta" in header_text or "saku gajian" in text_lower:
+        return "bank_saqu"
+        
+    # 3. Line Bank
+    if "line bank" in text_lower or "linebank" in text_lower or "line" in filename_lower or "hana bank" in text_lower or "consolidate statement" in text_lower:
+        return "line_bank"
+        
+    # 4. BCA
+    if "bca" in text_lower or "bca" in filename_lower or "central asia" in text_lower or "tahapan xpresi" in text_lower:
+        return "bca"
         
     return "general"
 
