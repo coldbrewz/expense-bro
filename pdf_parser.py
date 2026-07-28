@@ -124,10 +124,11 @@ def detect_bank_from_text(text, filename=""):
 
 def parse_spaylater_ocr(text):
     """
-    Parses Tesseract OCR text specifically looking for the SPayLater pattern:
-    Offline Payment - BUCK UP BURGER-HO
-    20 Jun 2026
-    + Rp65.000 >
+    Parses Tesseract OCR text from SPayLater screenshots.
+    Tesseract often outputs:
+    MERCHANT NAME
+    AMOUNT (e.g. + Rp261.030)
+    DATE (e.g. 02 Jun 2026) OR INSTALLMENT (e.g. 1/3)
     """
     transactions = []
     lines = text.split("\n")
@@ -139,8 +140,8 @@ def parse_spaylater_ocr(text):
     }
     
     for i, line in enumerate(cleaned_lines):
-        # Anchor on the amount line e.g., "+ Rp65.000 >", "Rp65.000", or "* Rp 65.000"
-        amt_match = re.search(r'(?:\+|-|\*)?\s*Rp\.?\s*([\d\.,]+)', line, re.IGNORECASE)
+        # Anchor on the amount line e.g., "+ Rp65.000", "i + Rp76.000", "P P + Rp48.626"
+        amt_match = re.search(r'Rp\.?\s*([\d\.,]{3,})', line, re.IGNORECASE)
         if amt_match:
             amount_str = amt_match.group(1)
             digits = re.sub(r'\D', '', amount_str)
@@ -153,42 +154,32 @@ def parse_spaylater_ocr(text):
             tx_date = None
             merchant = "SPayLater Transaction"
             
-            # Check if date is on the SAME line
-            date_match = re.search(r'(\d{1,2})\s*([A-Za-z]{3,})(?:\s+(\d{4}))?', line)
-            if date_match:
-                d_str, m_str, y_str = date_match.groups()
-                m_num = months_map.get(m_str.lower()[:3], 6)
-                y_num = int(y_str) if y_str else 2026
-                tx_date = f"{y_num}-{m_num:02d}-{int(d_str):02d}"
-                
-                merch_part = line[:date_match.start()].strip()
-                merch_part = re.sub(r'(?i)^Offline Payment - ', '', merch_part)
-                if merch_part:
-                    merchant = merch_part
-            else:
-                # Look up to 3 lines backward for a Date
-                for j in range(1, 4):
-                    if i - j < 0:
-                        break
-                    prev_line = cleaned_lines[i-j]
-                    
-                    date_match = re.search(r'(\d{1,2})\s*([A-Za-z]{3,})(?:\s+(\d{4}))?', prev_line)
+            # The line IMMEDIATELY PRECEDING the amount is almost always the merchant
+            if i - 1 >= 0:
+                merch_line = cleaned_lines[i-1]
+                merch_line = re.sub(r'(?i)^.*Offline Payment - ', '', merch_line)
+                merch_line = re.sub(r'\[\d+/\d+\]$', '', merch_line).strip()
+                if merch_line and not re.search(r'Rp\.?', merch_line, re.IGNORECASE):
+                    merchant = merch_line
+            
+            # Search for a Date anywhere from 2 lines above to 2 lines below the amount!
+            for j in range(-2, 3):
+                idx = i + j
+                if 0 <= idx < len(cleaned_lines):
+                    # Only match strict month abbreviations
+                    month_pattern = r'(jan|feb|mar|apr|mei|may|jun|june|jul|july|agu|aug|sep|okt|oct|nov|des|dec)'
+                    date_match = re.search(r'\b(\d{1,2})\s*' + month_pattern + r'[a-z]*(?:\s+(\d{4}))?\b', cleaned_lines[idx], re.IGNORECASE)
                     if date_match:
                         d_str, m_str, y_str = date_match.groups()
-                        m_num = months_map.get(m_str.lower()[:3], 6)
-                        y_num = int(y_str) if y_str else 2026
-                        tx_date = f"{y_num}-{m_num:02d}-{int(d_str):02d}"
-                        
-                        # The line before the date is the merchant
-                        if i - j - 1 >= 0:
-                            merch_line = cleaned_lines[i-j-1]
-                            merch_line = re.sub(r'(?i)^Offline Payment - ', '', merch_line)
-                            merch_line = re.sub(r'\[\d+/\d+\]$', '', merch_line).strip()
-                            if merch_line and not re.search(r'\+\s*Rp', merch_line):
-                                merchant = merch_line
-                        break
+                        day_num = int(d_str)
+                        if 1 <= day_num <= 31:
+                            m_num = months_map.get(m_str.lower()[:3], 6)
+                            y_num = int(y_str) if y_str else 2026
+                            tx_date = f"{y_num}-{m_num:02d}-{day_num:02d}"
+                            break
                         
             if not tx_date:
+                # Installments often lack dates in the history view, default to the 1st
                 tx_date = "2026-06-01"
                 
             transactions.append({
