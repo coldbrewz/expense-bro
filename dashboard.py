@@ -701,13 +701,13 @@ with b_col2:
         b_saqu = st.number_input("Bank Saqu Saldo", value=int(curr_bal.get("bank_saqu", {}).get("balance", 0)), step=500000, key="bal_saqu")
         b_line = st.number_input("Line Bank Saldo", value=int(curr_bal.get("line_bank", {}).get("balance", 0)), step=500000, key="bal_line")
         b_bca = st.number_input("BCA Saldo", value=int(curr_bal.get("bca", {}).get("balance", 0)), step=500000, key="bal_bca")
-        b_general = st.number_input("Permata Savings Saldo", value=int(curr_bal.get("general", {}).get("balance", 0)), step=500000, key="bal_general")
+        b_general = st.number_input("Permata Savings Saldo", value=int(curr_bal.get("permata_savings", {}).get("balance", 0)), step=500000, key="bal_general")
         
         if st.button("💾 Save All Saldo Balances", type="primary", use_container_width=True):
             db.set_balance("bank_saqu", b_saqu)
             db.set_balance("line_bank", b_line)
             db.set_balance("bca", b_bca)
-            db.set_balance("general", b_general)
+            db.set_balance("permata_savings", b_general)
             st.success("Bank balances updated!")
             st.rerun()
             
@@ -741,7 +741,7 @@ with bottom_col1:
                 "bank_saqu": "🐷 Saqu",
                 "bca": "🏦 BCA",
                 "line_bank": "📱 Line",
-                "general": "💰 Cash",
+                "permata_savings": "💰 Permata Savings",
             }
             acc_badge = acc_labels.get(row["account"], row["account"].upper())
 
@@ -831,7 +831,7 @@ with st.expander("🎛️ Advanced Table Filters", expanded=True):
     f_col1, f_col2, f_col3 = st.columns(3)
     
     with f_col1:
-        account_options = ["All Accounts", "permata_cc", "line_bank", "bank_saqu", "bca", "general"]
+        account_options = ["All Accounts", "permata_cc", "line_bank", "bank_saqu", "bca", "permata_savings"]
         selected_account_filter = st.selectbox("🏦 Filter by Account", account_options)
         
     with f_col2:
@@ -912,7 +912,7 @@ edited_df = st.data_editor(
         ),
         "account": st.column_config.SelectboxColumn(
             "Account",
-            options=["permata_cc", "bank_saqu", "bca", "line_bank", "general"],
+            options=["permata_cc", "bank_saqu", "bca", "line_bank", "permata_savings"],
             required=True,
         ),
         "expense_category": st.column_config.SelectboxColumn(
@@ -979,7 +979,7 @@ if has_changes:
             for new_row in added:
                 merchant = new_row.get("merchant", "New Transaction")
                 amount = int(new_row.get("amount", 0))
-                account = new_row.get("account", "general")
+                account = new_row.get("account", "permata_savings")
                 expense_category = new_row.get("expense_category", "misc")
                 category = new_row.get("category", "Non-CC")
 

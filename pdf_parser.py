@@ -79,7 +79,7 @@ def extract_pdf_transactions(file_bytes, password=None, filename=""):
         parsed_txs = parse_linebank_statement(text, statement_year)
     elif account_name == "bank_saqu":
         parsed_txs = parse_saqu_statement(text, statement_year)
-    elif account_name == "general":
+    elif account_name == "permata_savings":
         if "rekening koran" in text.lower() or "permatapayroll" in text.lower():
             parsed_txs = parse_permata_noncc_statement(text, statement_year)
         else:
@@ -114,13 +114,13 @@ def detect_bank_from_text(text, filename=""):
         if any(kw in header_text for kw in ["rekening koran", "permatapayroll", "tabungan", "account statement"]):
             if "credit card" in header_text or "rekening tagihan" in header_text or "shopping card" in header_text:
                 return "permata_cc"
-            return "general" # Permata Savings / Non-CC
+            return "permata_savings" # Permata Savings / Non-CC
         elif any(kw in header_text for kw in ["credit card", "rekening tagihan", "nomor kartu", "shopping card"]):
             return "permata_cc"
         else:
             return "permata_cc"
             
-    return "general"
+    return "permata_savings"
 
 def parse_linebank_statement(text, statement_year=2026):
     """

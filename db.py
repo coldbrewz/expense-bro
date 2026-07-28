@@ -234,7 +234,7 @@ def get_stats(billing_cycle):
         "bank_saqu": 0,
         "bca": 0,
         "line_bank": 0,
-        "general": 0
+        "permata_savings": 0
     }
     for row in account_rows:
         acc_name, total = row
@@ -562,7 +562,7 @@ def get_all_balances():
     rows = cursor.fetchall()
     conn.close()
     
-    defaults = {"bank_saqu": 0, "line_bank": 0, "bca": 0, "general": 0, "permata_cc": 0}
+    defaults = {"bank_saqu": 0, "line_bank": 0, "bca": 0, "permata_savings": 0, "permata_cc": 0}
     res = {}
     for r in rows:
         res[r[0]] = {"balance": r[1], "updated_at": r[2]}

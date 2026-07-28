@@ -158,7 +158,7 @@ def generate_report(stats, cycle_label, start_date, end_date):
         "bank_saqu": "🐷 Bank Saqu",
         "bca": "🏦 BCA",
         "line_bank": "📱 Line Bank",
-        "general": "💰 General"
+        "permata_savings": "💰 Permata Savings"
     }
     
     for acc_name, total in accounts.items():
