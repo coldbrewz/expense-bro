@@ -24,6 +24,7 @@ def init_db():
             account TEXT NOT NULL DEFAULT 'permata_cc',
             expense_category TEXT NOT NULL DEFAULT 'misc'
         )
+    """)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS budgets (
             category TEXT PRIMARY KEY,
