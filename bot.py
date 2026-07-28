@@ -511,20 +511,26 @@ def export_data(message):
 def handle_clear(message):
     if not is_allowed(message):
         return
-    args = message.text.split(maxsplit=1)
+    args = message.text.split()
     if len(args) < 2:
         bot.reply_to(
             message,
-            "⚠️ *Please specify account to clear.*\nUsage: `/clear line_bank` or `/clear permata_cc` or `/clear bank_saqu` or `/clear bca`",
+            "⚠️ *Please specify account to clear.*\nUsage:\n`/clear line_bank` (clears ALL cycles)\n`/clear line_bank 2026-06` (clears specific cycle)",
             parse_mode="Markdown"
         )
         return
     acc_to_clear = args[1].strip().lower()
-    current_cycle, _, _ = get_billing_cycle_info()
-    count = db.delete_transactions_by_account(acc_to_clear, current_cycle)
+    
+    cycle_to_clear = None
+    if len(args) >= 3 and args[2].lower() != "all":
+        cycle_to_clear = args[2].strip()
+        
+    count = db.delete_transactions_by_account(acc_to_clear, cycle_to_clear)
+    
+    cycle_msg = f"in cycle `{cycle_to_clear}`" if cycle_to_clear else "across *ALL billing cycles*"
     bot.reply_to(
         message,
-        f"🗑️ *Account Cleared!*\nDeleted `{count}` transactions for account `{acc_to_clear.upper()}` in cycle `{current_cycle}`.",
+        f"🗑️ *Account Cleared!*\nDeleted `{count}` transactions for account `{acc_to_clear.upper()}` {cycle_msg}.",
         parse_mode="Markdown"
     )
 

@@ -5,6 +5,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
+import db
 
 # Set page config
 st.set_page_config(page_title="Expense Bro Dashboard", page_icon="📊", layout="wide")
@@ -750,9 +751,9 @@ with f_col2:
 with f_col3:
     st.markdown('<div style="height: 28px;"></div>', unsafe_allow_html=True)
     if selected_account_filter != "All Accounts":
-        if st.button(f"🗑️ Clear {selected_account_filter.upper()} Rows", type="secondary", use_container_width=True):
-            count = db.delete_transactions_by_account(selected_account_filter, selected_cycle)
-            st.success(f"Deleted {count} transactions for {selected_account_filter} in cycle {selected_cycle}!")
+        if st.button(f"🗑️ Clear ALL {selected_account_filter.upper()} Rows", type="secondary", use_container_width=True):
+            count = db.delete_transactions_by_account(selected_account_filter, billing_cycle=None)
+            st.success(f"Deleted {count} transactions for {selected_account_filter} across ALL cycles!")
             st.rerun()
 
 st.caption("💡 *Double-click any cell to edit. Filter by account or search merchants above. Use the **+** button at the bottom of the table to add a new transaction.*")
