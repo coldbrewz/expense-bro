@@ -55,6 +55,21 @@ def init_db():
     conn.commit()
     conn.close()
 
+def check_duplicate_transaction(date_str, merchant, amount, account):
+    """
+    Checks if an identical transaction (same YYYY-MM-DD date, merchant, amount, account) already exists.
+    Returns True if duplicate, False otherwise.
+    """
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT id FROM transactions 
+        WHERE strftime('%Y-%m-%d', timestamp) = ? AND merchant = ? AND amount = ? AND account = ?
+    """, (date_str, merchant, amount, account))
+    row = cursor.fetchone()
+    conn.close()
+    return True if row else False
+
 def add_transaction(merchant, amount, category, billing_cycle, timestamp=None, account="permata_cc", expense_category="misc"):
     """
     Adds a transaction to the database, specifying the account and detailed expense category.

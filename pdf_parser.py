@@ -40,6 +40,10 @@ def extract_pdf_transactions(file_bytes, password=None, filename=""):
 
     if account_name == "bca":
         parsed_txs = parse_bca_statement(text, statement_year)
+    elif account_name == "line_bank":
+        parsed_txs = parse_linebank_statement(text, statement_year)
+    elif account_name == "bank_saqu":
+        parsed_txs = parse_saqu_statement(text, statement_year)
     elif account_name == "general":
         if "rekening koran" in text.lower() or "permatapayroll" in text.lower():
             parsed_txs = parse_permata_noncc_statement(text, statement_year)
@@ -50,104 +54,136 @@ def extract_pdf_transactions(file_bytes, password=None, filename=""):
         
     return parsed_txs, account_name
 
-def parse_bca_statement(text, statement_year=2026):
+def detect_bank_from_text(text, filename=""):
     """
-    Dedicated block parser for BCA Tahapan Xpresi / BCA statement PDFs.
-    Combines multi-line description wraps and extracts only debit (DB) expenses.
+    Scans top header text of page 1 and filename to determine bank account.
+    Prevents cross-bank transfer descriptions in body lines from misdetecting bank.
+    """
+    header_text = text[:800].lower()
+    filename_lower = filename.lower()
+    
+    # 1. Line Bank / KEB Hana Bank
+    if "line" in filename_lower or "line bank" in header_text or "linebank" in header_text or "hana bank" in header_text or "saving deposits-digital" in header_text:
+        return "line_bank"
+        
+    # 2. Bank Saqu
+    if "saqu" in filename_lower or "bank saqu" in header_text or "pt bank saqu indonesia" in header_text or "saku gajian" in header_text:
+        return "bank_saqu"
+        
+    # 3. BCA
+    if "bca" in filename_lower or "bca" in header_text or "tahapan xpresi" in header_text or "central asia" in header_text:
+        return "bca"
+        
+    # 4. Permata Bank
+    if "permata" in filename_lower or "permata" in header_text:
+        if any(kw in header_text for kw in ["rekening koran", "permatapayroll", "tabungan", "account statement"]):
+            if "credit card" in header_text or "rekening tagihan" in header_text or "shopping card" in header_text:
+                return "permata_cc"
+            return "general" # Permata Savings / Non-CC
+        elif any(kw in header_text for kw in ["credit card", "rekening tagihan", "nomor kartu", "shopping card"]):
+            return "permata_cc"
+        else:
+            return "permata_cc"
+            
+    return "general"
+
+def parse_linebank_statement(text, statement_year=2026):
+    """
+    Dedicated multi-line block parser for Line Bank / Hana Bank e-statements.
     """
     transactions = []
     lines = text.split("\n")
     
-    row_start_regex = re.compile(r'^\s*(\d{2})/(\d{2})\s+(.*)', re.IGNORECASE)
-    amount_db_regex = re.compile(r'([\d\.,]{3,15})\s+DB\b', re.IGNORECASE)
+    months_map = {
+        'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'mei': 5, 'may': 5, 'jun': 6, 'june': 6,
+        'jul': 7, 'july': 7, 'agu': 8, 'aug': 8, 'sep': 9, 'okt': 10, 'oct': 10, 'nov': 11, 'des': 12, 'dec': 12
+    }
+    
+    date_start_regex = re.compile(r'^\s*(\d{1,2})[-/]([a-zA-Z]+|\d{1,2})[-/](\d{4})', re.IGNORECASE)
+    amount_row_regex = re.compile(r'([\d\.,]+)\s+([\d\.,]+)\s+([\d\.,]+)\s+([\d\.,]+)\s*$', re.IGNORECASE)
 
-    raw_blocks = []
+    blocks = []
     current_block = []
     
     for line in lines:
-        line_str = line.strip()
-        if not line_str:
+        line_clean = line.strip()
+        if not line_clean:
             continue
             
-        if row_start_regex.match(line_str):
+        if date_start_regex.match(line_clean):
             if current_block:
-                raw_blocks.append(" ".join(current_block))
+                blocks.append(" ".join(current_block))
                 current_block = []
-        current_block.append(line_str)
+        current_block.append(line_clean)
         
     if current_block:
-        raw_blocks.append(" ".join(current_block))
+        blocks.append(" ".join(current_block))
         
-    for block in raw_blocks:
-        match = row_start_regex.match(block)
+    for block in blocks:
+        match = date_start_regex.match(block)
         if not match:
             continue
             
-        d_str, m_str, rest = match.group(1), match.group(2), match.group(3)
-        day_num, m_num = int(d_str), int(m_str)
-        
+        d_str, month_str, y_str = match.group(1), match.group(2), match.group(3)
+        if month_str.isdigit():
+            m_num = int(month_str)
+        else:
+            m_num = months_map.get(month_str.lower(), 0)
+            
+        day_num, y_num = int(d_str), int(y_str)
         if not (1 <= day_num <= 31 and 1 <= m_num <= 12):
             continue
             
-        # Ignore credit lines (TRSF E-BANKING CR, SETORAN VIA CDM, or blocks without DB)
-        if ' CR ' in f" {block} " or 'SETORAN' in block.upper() or 'SALDO AWAL' in block.upper():
-            continue
-            
-        amt_match = amount_db_regex.search(block)
+        amt_match = amount_row_regex.search(block)
         if not amt_match:
             continue
             
-        amount_raw = amt_match.group(1)
-        clean_amt_str = amount_raw
-        if re.search(r'[\.,]00$', clean_amt_str):
-            clean_amt_str = clean_amt_str[:-3]
+        debit_raw = amt_match.group(2)
+        credit_raw = amt_match.group(3)
+        
+        c_digits = re.sub(r'\D', '', re.sub(r'[\.,]00$', '', credit_raw))
+        c_val = int(c_digits) if c_digits else 0
+        if c_val > 0:
+            continue # Ignore incoming transfer credit
             
-        digits = re.sub(r'\D', '', clean_amt_str)
-        if not digits:
+        d_digits = re.sub(r'\D', '', re.sub(r'[\.,]00$', '', debit_raw))
+        if not d_digits:
             continue
             
-        amount = int(digits)
+        amount = int(d_digits)
         if amount == 0:
             continue
             
-        merchant_text = rest
+        rest = block[match.end():amt_match.start()].strip()
+        clean_merchant = re.sub(r'\b\d{2}:\d{2}:\d{2}\b', '', rest)
+        clean_merchant = re.sub(r'\s+', ' ', clean_merchant).strip()
         
-        # Clean common BCA prefixes
-        merchant_text = re.sub(r'(?i)^TRSF\s+E-BANKING\s+DB\s+\S+\s*', '', merchant_text)
-        merchant_text = re.sub(r'(?i)^TRANSAKSI\s+DEBIT\s+(?:TGL:\s*\d{2}/\d{2}\s*)?(?:QRC\d+\s*)?(?:\d+\.00)?', '', merchant_text)
-        merchant_text = re.sub(r'(?i)^FLAZZ\s+BCA\s+TOPUP\s*', 'FLAZZ BCA TOPUP ', merchant_text)
-        merchant_text = re.sub(r'(?i)^BIAYA\s+ADM\s*\d*\s*', 'BIAYA ADM ', merchant_text)
-        
-        # Clean merchant suffixes
-        merchant_text = re.sub(r'[\d\.,]+\s+DB.*$', '', merchant_text, flags=re.IGNORECASE)
-        merchant_text = re.sub(r'[\d\.,]+\s*$', '', merchant_text)
-        merchant_text = re.sub(r'\s+', ' ', merchant_text).strip()
-        
-        if 'BIAYA ADM' in merchant_text.upper():
-            continue
+        if not clean_merchant or len(clean_merchant) < 2:
+            clean_merchant = "Line Bank Debit Transaction"
             
-        if not merchant_text or len(merchant_text) < 2:
-            merchant_text = "BCA Debit Transaction"
-            
-        tx_date = f"{statement_year}-{m_num:02d}-{day_num:02d}"
+        tx_date = f"{y_num}-{m_num:02d}-{day_num:02d}"
         transactions.append({
             "date": tx_date,
-            "merchant": merchant_text,
+            "merchant": clean_merchant,
             "amount": amount
         })
         
     return transactions
 
-def parse_permata_noncc_statement(text, statement_year=2026):
+def parse_saqu_statement(text, statement_year=2026):
     """
-    Dedicated parser for Permata Savings / Rekening Koran statements.
-    Processes lines with 2 dates (Trx. Date & Valuta Date: DD/MM DD/MM), description, and Debet/Saldo columns.
+    Dedicated parser for Bank Saqu e-statements.
     """
     transactions = []
     lines = text.split("\n")
     
-    permata_row_regex = re.compile(
-        r'^\s*(\d{2})/(\d{2})\s+(\d{2})/(\d{2})\s+(.*?)\s+([\d\.,]{3,15})\s+([\d\.,]{3,15})\s*$',
+    months_map = {
+        'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'mei': 5, 'may': 5, 'jun': 6, 'juni': 6,
+        'jul': 7, 'juli': 7, 'agu': 8, 'aug': 8, 'sep': 9, 'okt': 10, 'oct': 10, 'nov': 11, 'des': 12, 'dec': 12
+    }
+    
+    saqu_regex = re.compile(
+        r'^\s*(\d{1,2})\s+([a-zA-Z]+)\s+(\d{4})\s+(.*?)\s+([-+])?Rp\s*([\d\.,]+)\s*$',
         re.IGNORECASE
     )
 
@@ -156,21 +192,85 @@ def parse_permata_noncc_statement(text, statement_year=2026):
         if not line_clean:
             continue
             
-        match = permata_row_regex.match(line_clean)
+        match = saqu_regex.match(line_clean)
+        if not match:
+            continue
+            
+        d_str, month_str, y_str = match.group(1), match.group(2), match.group(3)
+        merchant_part = match.group(4).strip()
+        sign = match.group(5) or ""
+        amount_raw = match.group(6)
+        
+        m_num = months_map.get(month_str.lower(), 0)
+        day_num, y_num = int(d_str), int(y_str)
+        
+        if 1 <= day_num <= 31 and 1 <= m_num <= 12:
+            merchant_upper = merchant_part.upper()
+            if sign == '+' or 'DANA MASUK' in merchant_upper or 'BUNGA' in merchant_upper or 'DANA AWAL' in merchant_upper or 'DANA AKHIR' in merchant_upper:
+                continue
+                
+            clean_amt_str = amount_raw
+            if re.search(r'[\.,]00$', clean_amt_str):
+                clean_amt_str = clean_amt_str[:-3]
+            digits = re.sub(r'\D', '', clean_amt_str)
+            
+            if digits:
+                amount = int(digits)
+                if amount > 0 and len(merchant_part) >= 2:
+                    transactions.append({
+                        "date": f"{y_num}-{m_num:02d}-{day_num:02d}",
+                        "merchant": merchant_part,
+                        "amount": amount
+                    })
+                    
+    return transactions
+
+def parse_permata_noncc_statement(text, statement_year=2026):
+    """
+    Dedicated multi-line block parser for Permata Savings / Rekening Koran statements.
+    """
+    transactions = []
+    lines = text.split("\n")
+    
+    date_start_regex = re.compile(r'^\s*(\d{2})/(\d{2})\s+(\d{2})/(\d{2})\s+(.*)', re.IGNORECASE)
+    amount_regex = re.compile(r'([\d\.,]{3,15})\s+([\d\.,]{3,15})\s*$', re.IGNORECASE)
+
+    blocks = []
+    current_block = []
+    
+    for line in lines:
+        line_clean = line.strip()
+        if not line_clean:
+            continue
+            
+        if date_start_regex.match(line_clean):
+            if current_block:
+                blocks.append(" ".join(current_block))
+                current_block = []
+        current_block.append(line_clean)
+        
+    if current_block:
+        blocks.append(" ".join(current_block))
+        
+    for block in blocks:
+        match = date_start_regex.match(block)
         if not match:
             continue
             
         d_str, m_str = match.group(1), match.group(2)
-        merchant_part = match.group(5).strip()
-        debit_raw = match.group(6)
+        rest = match.group(5)
         
         day_num, m_num = int(d_str), int(m_str)
         if not (1 <= day_num <= 31 and 1 <= m_num <= 12):
             continue
             
-        merchant_upper = merchant_part.upper()
+        amt_match = amount_regex.search(block)
+        if not amt_match:
+            continue
+            
+        debit_raw = amt_match.group(1)
         
-        # Filter out incoming transfers or interest income
+        merchant_upper = block.upper()
         if any(kw in merchant_upper for kw in ['TRF INCOMING', 'INCOMING', 'PENDAPATAN BUNGA', 'BUNGA', 'SALDO AWAL']):
             continue
             
@@ -186,56 +286,22 @@ def parse_permata_noncc_statement(text, statement_year=2026):
         if amount == 0:
             continue
             
-        clean_merchant = merchant_part
-        clean_merchant = re.sub(r'\b\d{2}:\d{2}:\d{2}\b', '', clean_merchant)
-        clean_merchant = re.sub(r'\b\d{10,20}\b', '', clean_merchant)
-        clean_merchant = re.sub(r'\s+', ' ', clean_merchant).strip()
+        merchant_text = rest[:amt_match.start()].strip()
+        merchant_text = re.sub(r'\b\d{2}:\d{2}:\d{2}\b', '', merchant_text)
+        merchant_text = re.sub(r'\b\d{10,20}\b', '', merchant_text)
+        merchant_text = re.sub(r'\s+', ' ', merchant_text).strip()
         
-        if not clean_merchant or len(clean_merchant) < 2:
-            clean_merchant = "Permata Transaction"
+        if not merchant_text or len(merchant_text) < 2:
+            merchant_text = "Permata Transaction"
             
         tx_date = f"{statement_year}-{m_num:02d}-{day_num:02d}"
         transactions.append({
             "date": tx_date,
-            "merchant": clean_merchant,
+            "merchant": merchant_text,
             "amount": amount
         })
         
     return transactions
-
-def detect_bank_from_text(text, filename=""):
-    """
-    Scans PDF text and filename to determine which bank account it belongs to.
-    Supports Permata CC, Permata Savings (Non-CC), BCA, Bank Saqu, and Line Bank.
-    """
-    text_lower = text.lower()
-    filename_lower = filename.lower()
-    header_text = text[:1000].lower()
-    
-    # 1. Permata Bank statements (Check Permata first to avoid body transfer descriptions matching other banks)
-    if "permata" in text_lower or "permata" in filename_lower:
-        if any(kw in header_text for kw in ["rekening koran", "permatapayroll", "tabungan", "account statement"]):
-            if "credit card" in header_text or "rekening tagihan" in header_text or "shopping card" in header_text:
-                return "permata_cc"
-            return "general" # Permata Savings / Non-CC
-        elif any(kw in header_text for kw in ["credit card", "rekening tagihan", "nomor kartu", "shopping card", "detil transaksi"]):
-            return "permata_cc"
-        else:
-            return "permata_cc"
-            
-    # 2. Bank Saqu
-    if "saqu" in text_lower or "saqu" in filename_lower or "jasa jakarta" in header_text or "saku gajian" in text_lower:
-        return "bank_saqu"
-        
-    # 3. Line Bank
-    if "line bank" in text_lower or "linebank" in text_lower or "line" in filename_lower or "hana bank" in text_lower or "consolidate statement" in text_lower:
-        return "line_bank"
-        
-    # 4. BCA
-    if "bca" in text_lower or "bca" in filename_lower or "central asia" in text_lower or "tahapan xpresi" in text_lower:
-        return "bca"
-        
-    return "general"
 
 def parse_statement_text(text):
     """
