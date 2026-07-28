@@ -507,7 +507,26 @@ def export_data(message):
                 )
     except Exception as e:
         logger.exception("Export failed: %s", e)
-        bot.reply_to(message, f"❌ *Export failed:* {e}", parse_mode="Markdown")
+@bot.message_handler(commands=["clear"])
+def handle_clear(message):
+    if not is_allowed(message):
+        return
+    args = message.text.split(maxsplit=1)
+    if len(args) < 2:
+        bot.reply_to(
+            message,
+            "⚠️ *Please specify account to clear.*\nUsage: `/clear line_bank` or `/clear permata_cc` or `/clear bank_saqu` or `/clear bca`",
+            parse_mode="Markdown"
+        )
+        return
+    acc_to_clear = args[1].strip().lower()
+    current_cycle, _, _ = get_billing_cycle_info()
+    count = db.delete_transactions_by_account(acc_to_clear, current_cycle)
+    bot.reply_to(
+        message,
+        f"🗑️ *Account Cleared!*\nDeleted `{count}` transactions for account `{acc_to_clear.upper()}` in cycle `{current_cycle}`.",
+        parse_mode="Markdown"
+    )
 
 @bot.message_handler(content_types=["document"])
 def handle_document(message):

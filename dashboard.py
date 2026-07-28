@@ -733,12 +733,29 @@ with bottom_col3:
     st.markdown("\n".join(insights_html), unsafe_allow_html=True)
 
 
-# Data List view with interactive editor
-st.write("---")
-st.subheader("📋 Transactions Manager")
-st.markdown(
-    "💡 *Double-click any cell to edit. Select a row and press Delete/Backspace on your keyboard to remove. Click the **+** button at the bottom of the table to add a new transaction. Save your changes using the button below.*"
-)
+# --- 📋 TRANSACTIONS MANAGER ---
+st.markdown("<hr style='border-color:#1c1e28;'>", unsafe_allow_html=True)
+st.markdown("### 📋 Transactions Manager")
+
+# Filters & Bulk Action Controls
+f_col1, f_col2, f_col3 = st.columns([2, 2, 2])
+
+with f_col1:
+    account_options = ["All Accounts", "permata_cc", "line_bank", "bank_saqu", "bca", "general"]
+    selected_account_filter = st.selectbox("🔍 Filter by Account", account_options)
+
+with f_col2:
+    search_query = st.text_input("🔎 Search Merchant", placeholder="e.g. Grab, Shopee, Indomaret")
+
+with f_col3:
+    st.markdown('<div style="height: 28px;"></div>', unsafe_allow_html=True)
+    if selected_account_filter != "All Accounts":
+        if st.button(f"🗑️ Clear {selected_account_filter.upper()} Rows", type="secondary", use_container_width=True):
+            count = db.delete_transactions_by_account(selected_account_filter, selected_cycle)
+            st.success(f"Deleted {count} transactions for {selected_account_filter} in cycle {selected_cycle}!")
+            st.rerun()
+
+st.caption("💡 *Double-click any cell to edit. Filter by account or search merchants above. Use the **+** button at the bottom of the table to add a new transaction.*")
 
 show_cols = [
     "id",
@@ -749,12 +766,19 @@ show_cols = [
     "expense_category",
     "category",
 ]
-# Make sure amount is numeric and date is a datetime.date object
+
 display_df = cycle_df[show_cols].copy()
+
+# Apply Account Filter if selected
+if selected_account_filter != "All Accounts":
+    display_df = display_df[display_df["account"] == selected_account_filter]
+
+# Apply Search Query if typed
+if search_query:
+    display_df = display_df[display_df["merchant"].str.contains(search_query, case=False, na=False)]
+
 display_df["amount"] = display_df["amount"].astype(int)
 display_df["date"] = pd.to_datetime(display_df["date"]).dt.date
-
-# Sort display_df descending by ID so newest is on top
 display_df = display_df.sort_values(by="id", ascending=False)
 
 if "editor_key" not in st.session_state:

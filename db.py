@@ -88,6 +88,22 @@ def add_transaction(merchant, amount, category, billing_cycle, timestamp=None, a
     conn.close()
     return new_id
 
+def delete_transactions_by_account(account, billing_cycle=None):
+    """
+    Deletes transactions for a specific account, optionally filtered by billing cycle.
+    Returns the count of deleted rows.
+    """
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    if billing_cycle:
+        cursor.execute("DELETE FROM transactions WHERE account = ? AND billing_cycle = ?", (account, billing_cycle))
+    else:
+        cursor.execute("DELETE FROM transactions WHERE account = ?", (account,))
+    count = cursor.rowcount
+    conn.commit()
+    conn.close()
+    return count
+
 def delete_last_transaction():
     """
     Deletes the most recently added transaction.
