@@ -7,6 +7,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 import db
+import parser
 
 # Set page config
 st.set_page_config(page_title="Expense Bro Dashboard", page_icon="📊", layout="wide")
