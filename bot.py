@@ -553,6 +553,8 @@ def budget_status_command(message):
             
         lines.append(f"{badge} *{cat_name}:* `{spent_str}` / `{target_str}` ({pct}%)")
         
+    bot.reply_to(message, "\n".join(lines), parse_mode="Markdown")
+
 @bot.message_handler(commands=["setbudget"])
 def handle_set_budget(message):
     if not is_allowed(message):
