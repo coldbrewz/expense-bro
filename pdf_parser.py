@@ -12,22 +12,48 @@ def extract_pdf_transactions(file_bytes, password=None, filename=""):
     reader = PdfReader(pdf_file)
     
     if reader.is_encrypted:
+        import os
+        passwords_to_try = []
+        
+        # Check explicit bank-specific password environment variables
+        env_vars = [
+            "PDF_PASSWORD_PERMATA_CC",
+            "PDF_PASSWORD_BANK_SAQU",
+            "PDF_PASSWORD_BCA",
+            "PDF_PASSWORD_LINE_BANK",
+            "PDF_PASSWORD"
+        ]
+        
         if password:
-            # Support multiple comma-separated passwords in .env (e.g. "30Oct20022233,30102002,301002")
-            passwords_to_try = [p.strip() for p in password.split(",") if p.strip()]
-            decrypted = False
-            for pwd in passwords_to_try:
-                try:
-                    res = reader.decrypt(pwd)
-                    if res != 0 or not reader.is_encrypted:
-                        decrypted = True
-                        break
-                except Exception:
-                    pass
-            if not decrypted:
-                raise ValueError("Failed to decrypt PDF. Please verify your PDF_PASSWORD in your .env file.")
-        else:
-            raise ValueError("PDF is password-protected. Please set PDF_PASSWORD in your .env file.")
+            for p in str(password).split(","):
+                p_clean = p.strip()
+                if p_clean and p_clean not in passwords_to_try:
+                    passwords_to_try.append(p_clean)
+                    
+        for ev in env_vars:
+            val = os.getenv(ev, "")
+            if val:
+                for p in val.split(","):
+                    p_clean = p.strip()
+                    if p_clean and p_clean not in passwords_to_try:
+                        passwords_to_try.append(p_clean)
+                        
+        # Fallback birthdate variations
+        for var in ["30102002", "301002", "30Oct20022233", "021030", "20021030", "165410"]:
+            if var not in passwords_to_try:
+                passwords_to_try.append(var)
+                
+        decrypted = False
+        for pwd in passwords_to_try:
+            try:
+                res = reader.decrypt(pwd)
+                if res != 0 or not reader.is_encrypted:
+                    decrypted = True
+                    break
+            except Exception:
+                pass
+        if not decrypted:
+            raise ValueError("Failed to decrypt PDF. Please check your bank PDF passwords in .env.")
             
     text = ""
     for page in reader.pages:
