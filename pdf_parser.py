@@ -176,12 +176,14 @@ def parse_linebank_statement(text, statement_year=2026):
         debit_raw = amt_match.group(2)
         credit_raw = amt_match.group(3)
         
-        c_digits = re.sub(r'\D', '', re.sub(r'[\.,]00$', '', credit_raw))
+        c_no_cents = re.sub(r'\.\d{1,2}$', '', credit_raw.strip())
+        c_digits = re.sub(r'\D', '', c_no_cents)
         c_val = int(c_digits) if c_digits else 0
         if c_val > 0:
             continue # Ignore incoming transfer credit
             
-        d_digits = re.sub(r'\D', '', re.sub(r'[\.,]00$', '', debit_raw))
+        d_no_cents = re.sub(r'\.\d{1,2}$', '', debit_raw.strip())
+        d_digits = re.sub(r'\D', '', d_no_cents)
         if not d_digits:
             continue
             
@@ -309,11 +311,8 @@ def parse_permata_noncc_statement(text, statement_year=2026):
         if any(kw in merchant_upper for kw in ['TRF INCOMING', 'INCOMING', 'PENDAPATAN BUNGA', 'BUNGA', 'SALDO AWAL']):
             continue
             
-        clean_amt_str = debit_raw
-        if re.search(r'[\.,]00$', clean_amt_str):
-            clean_amt_str = clean_amt_str[:-3]
-            
-        digits = re.sub(r'\D', '', clean_amt_str)
+        d_no_cents = re.sub(r'[\.,]\d{1,2}$', '', debit_raw.strip())
+        digits = re.sub(r'\D', '', d_no_cents)
         if not digits:
             continue
             
