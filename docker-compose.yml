@@ -7,11 +7,8 @@ services:
     restart: unless-stopped
     volumes:
       - ./data:/app/data
-    environment:
-      - TELE_TOKEN=${TELE_TOKEN}
-      - ALLOWED_USER_IDS=${ALLOWED_USER_IDS}
-      - BILLING_CYCLE_START_DAY=${BILLING_CYCLE_START_DAY}
-      - PDF_PASSWORD=${PDF_PASSWORD}
+    env_file:
+      - .env
 
   dashboard:
     build: .
@@ -23,8 +20,8 @@ services:
       - "8501"
     volumes:
       - ./data:/app/data
-    environment:
-      - DASHBOARD_PASSWORD=${DASHBOARD_PASSWORD}
+    env_file:
+      - .env
     command: ["streamlit", "run", "dashboard.py", "--server.port=8501", "--server.address=0.0.0.0"]
 
   tunnel:
