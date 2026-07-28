@@ -947,6 +947,7 @@ edited_df = st.data_editor(
                 "bills",
                 "investment",
                 "family",
+                "gf",
                 "misc",
             ],
             required=True,

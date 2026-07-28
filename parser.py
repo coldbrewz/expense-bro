@@ -153,7 +153,8 @@ def categorize_expense(merchant, text=""):
         'entertainment': r'(netflix|spotify|cgv|xxi|cinema|bioskop|disney|youtube|game|steam|playstation|ticket|karaoke|studio karaoke)',
         'shopping': r'(tokopedia|shopee|lazada|blibli|bukalapak|uniqlo|zara|h&m|mall|decathlon|ikea|ace hardware|clothing|fashion|baju)',
         'bills': r'(midtrans|xendit|pln|pdam|telkom|indihome|wifi|listrik|pulsa|bpjs|pajak|asuransi|billing|subscription|tagihan|finnet|telkomsel|halodoc)',
-        'investment': r'(ajaib|bibit|bareksa|pluang|crypto|binance|stockbit|saham|reksadana|emas|gold|investasi)'
+        'investment': r'(ajaib|bibit|bareksa|pluang|crypto|binance|stockbit|saham|reksadana|emas|gold|investasi)',
+        'gf': r'(gf|girlfriend|pacar|ayang|beb|babe|kado pacar|gift pacar|anniversary|date night)'
     }
     
     for category, pattern in rules.items():
